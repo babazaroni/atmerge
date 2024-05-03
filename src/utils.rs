@@ -125,18 +125,28 @@ pub fn clean_df_val(df_val:AnyValue<'_>)->String{
     String::from(trimmed)
 }
 use calamine::{Reader, open_workbook, Xlsx, Data};
-pub fn prompt_for_excel() -> PolarsResult<(DataFrame,PathBuf)> {
 
+pub fn prompt_for_template()->Option<PathBuf>{
     let path = rfd::FileDialog::new()
     .set_directory(".")
     .add_filter("XLSX",&["xls*","csv"]).pick_file();
+    return path
+}
+
+pub fn get_template(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
     if let Some(picked_path) = path {
+        if picked_path.exists() == false{
+            return Err(PolarsError::NoData("File does not exist".into()));}
 
         if picked_path.extension().unwrap() == "csv"{
-            let path = picked_path.clone();
-            return Ok((load_csv(Some(picked_path)).unwrap(),path));
+            let res = load_csv(Some(picked_path.clone()));
+            if let Ok(df) = res{
+                return Ok(df);
+            }
+            return  Err(PolarsError::NoData("No file selected".into()));
         }
+        
 
         let mut workbook: Xlsx<_> = open_workbook(&picked_path).expect("Cannot open file"); 
         workbook.load_tables().expect("Cannot load tables");
@@ -179,11 +189,19 @@ pub fn prompt_for_excel() -> PolarsResult<(DataFrame,PathBuf)> {
 
             let df = DataFrame::new(series).unwrap();
 
-            return Result::Ok((df,picked_path));
+            return Result::Ok(df);
         }
-        
     }
+
     Err(PolarsError::NoData("No file selected".into()))
+
+}
+pub fn prompt_for_excel() -> PolarsResult<DataFrame> {
+
+    let path = prompt_for_template();
+
+    get_template(path)
+
 }
 
 fn get_vec_columns(df: &DataFrame) -> Vec<Series>{

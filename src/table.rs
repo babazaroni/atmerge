@@ -5,8 +5,8 @@ use crate::clean_df_val;
 
 /// Shows off a table with dynamic layout
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
 pub struct Table {
-    //demo: DemoType,
     striped: bool,
     resizable: bool,
     clickable: bool,
@@ -18,7 +18,6 @@ pub struct Table {
 impl Default for Table {
     fn default() -> Self {
         Self {
-            //demo: DemoType::ManyHomogeneous,
             striped: true,
             resizable: true,
             clickable: true,

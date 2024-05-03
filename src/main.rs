@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use atmerge::{atmerge_self_update,load_csv, merge, prompt_for_excel, prompt_for_folder, save_merged,merge_excel,filter};
+use atmerge::{atmerge_self_update,load_csv, merge, prompt_for_excel};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter};
+use atmerge::get_template;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
 use std::collections::BTreeMap;
@@ -19,7 +21,7 @@ use self_update::update::Release;
 use egui_modal::{Icon, Modal};
 
 
-//use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize};
 
 fn main() -> eframe::Result<()> {
     let rt = Runtime::new().expect("Unable to create Runtime");
@@ -57,27 +59,35 @@ fn main() -> eframe::Result<()> {
 
 type Title = String;
 
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+
 struct Atmerge {
-    //#[serde(skip)]
-    table: atmerge::Table,
-    //#[serde(skip)]
-    dfs: BTreeMap<Title, polars::prelude::DataFrame>,
     monitor_folder: Option<std::path::PathBuf>,
     merged_folder: Option<std::path::PathBuf>,
-    tests_file_path: Option<std::path::PathBuf>,
     template_file_path: Option<std::path::PathBuf>,
+
+    #[cfg_attr(feature = "serde", serde(skip))]
+    table: atmerge::Table,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    dfs: BTreeMap<Title, polars::prelude::DataFrame>,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    tests_file_path: Option<std::path::PathBuf>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     merged_file_path: Option<std::path::PathBuf>,
-    //#[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     rx_main: Option<std::sync::mpsc::Receiver<Option<std::path::PathBuf>>>,
-    //#[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     tx_main: Option<std::sync::mpsc::Sender<Option<std::path::PathBuf>>>,
-
+    #[cfg_attr(feature = "serde", serde(skip))]
     rx_update: Option<std::sync::mpsc::Receiver<bool>>,
-
+    #[cfg_attr(feature = "serde", serde(skip))]
     services_started: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
     update_check: bool,
+    #[cfg_attr(feature = "serde", serde(skip))]
     releases: Option<Vec<Release>>,
+    #[cfg_attr(feature = "serde", serde(skip))]
     new_release: Option<String>,
 }
 
@@ -235,6 +245,31 @@ impl Atmerge {
         confirm_update_modal
 
     }
+
+    fn check_for_template(&mut self){
+
+        if self.template_file_path.is_none(){
+            return;
+        }
+
+        if let Some(template_file_path) = self.template_file_path.clone(){
+
+            if self.dfs.get("template").is_none(){
+                let res = get_template(Some(template_file_path));
+
+                if let Ok(df) = res{
+                    self.dfs.insert("template".to_owned(), df);
+                    self.merge_serve();
+                    return;
+                } else {
+                    self.template_file_path = None;
+                }
+
+            }
+    
+        }
+
+    }
     
 }
 
@@ -253,8 +288,7 @@ impl egui_dock::TabViewer for Atmerge {
 
         self.start_services(ui);
 
-
-
+        self.check_for_template();
 
         if let Ok(rx_path_msg) = self.rx_main.as_ref().unwrap().try_recv() {
 
@@ -288,10 +322,6 @@ impl egui_dock::TabViewer for Atmerge {
                 }
             }
         }
-        
-            
-
-
 
         match tab.as_str() {
             "template" => {
@@ -300,18 +330,12 @@ impl egui_dock::TabViewer for Atmerge {
 
                     if ui.button("Open Template File").clicked() {
 
-                        let polars_result = prompt_for_excel();
-    
-                        if let Ok((df,template_file_path)) = polars_result{
-                            self.template_file_path = Some(template_file_path.clone());
-                            println!("Read Polars DataFrame");
-                            println!("{:?}",df.width());
-                            println!("{:?}",df.height());
-                            self.dfs.insert("template".to_owned(), df);
-                            self.merge_serve()
-    
-                        }
-                    }                match self.template_file_path.clone(){
+                        self.template_file_path = prompt_for_template();
+
+                        self.dfs.remove("template");
+
+                    }
+                    match self.template_file_path.clone(){
                     Some(template_file_path) => {
                         let tfp = format!("{:?}",template_file_path);
                         ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN));
