@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use atmerge::{atmerge_self_update,load_csv, merge, prompt_for_excel};
+use atmerge::{atmerge_self_update,load_csv, merge};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter};
 use atmerge::get_template;
 use eframe::{egui, NativeOptions};
@@ -14,21 +14,20 @@ use std::time::Duration;
 
 use egui::*;
 
-//use notify::{Watcher, RecursiveMode};
-
-include!("macros.rs");
-
 use self_update::update::Release;
 
 use egui_modal::{Icon, Modal};
 
+include!("macros.rs");
 
-use serde::{Serialize, Deserialize};
+
+
+const TAB_TEMPLATE: &str = "template";
+const TAB_TEST: &str = "test";
+const TAB_MERGE: &str = "merge";
 
 fn main() -> eframe::Result<()> {
     let rt = Runtime::new().expect("Unable to create Runtime");
-
-
 
     // Enter the runtime so that `tokio::spawn` is available immediately.
     let _enter = rt.enter();
@@ -105,11 +104,10 @@ impl Default for Atmerge{
             monitoring_folder: None,
             test_file_path: None,
             merged_file_path: None,
+
             rx_main: None,
             tx_main: None,
             rx_update:None,
-
-
 
             services_started: false,
             update_check: false,
@@ -128,9 +126,9 @@ impl Atmerge {
 
         if let Some(merged_folder) = self.state.merged_folder.clone(){
 
-            if let Some(df_template) = self.dfs.get("template"){
+            if let Some(df_template) = self.dfs.get(TAB_TEMPLATE){
 
-                if let Some(df_tests) = self.dfs.get("tests"){
+                if let Some(df_tests) = self.dfs.get(TAB_TEST){
 
                     if let Ok(df_filtered) = filter(Some(df_tests.clone())){
 
@@ -147,7 +145,7 @@ impl Atmerge {
                             stripped_file_name = stripped_file_name.split("_Template").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" template").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" Template").collect::<Vec<&str>>()[0];
-                            let merge_name = format!("{}_{}",stripped_file_name,"test");
+                            let merge_name = format!("{}_{}",stripped_file_name,"merge");
 
 
                             let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
@@ -156,7 +154,7 @@ impl Atmerge {
 
                             self.merged_file_path = Some(merged_path_xlsx);                        
      
-                            self.dfs.insert("merged".to_owned(), df_merged.clone());
+                            self.dfs.insert(TAB_MERGE.to_owned(), df_merged.clone());
 
                             //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
 
@@ -247,11 +245,11 @@ impl Atmerge {
 
         if let Some(template_file_path) = self.state.template_file_path.clone(){
 
-            if self.dfs.get("template").is_none(){
+            if self.dfs.get(TAB_TEMPLATE).is_none(){
                 let res = get_template(Some(template_file_path));
 
                 if let Ok(df) = res{
-                    self.dfs.insert("template".to_owned(), df);
+                    self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
                     self.merge_serve();
                     return;
                 } else {
@@ -321,13 +319,10 @@ impl egui_dock::TabViewer for Atmerge {
 
 
             let df_result = load_csv(rx_path_msg.clone());
-            if let Ok(df) = df_result{
+            if let Ok(df) = df_result {
                 self.test_file_path = rx_path_msg;
 
-                //println!("Read Polars DataFrame");
-                //println!("{:?}",df.width());
-                //println!("{:?}",df.height());
-                self.dfs.insert("tests".to_owned(), df);
+                self.dfs.insert(TAB_TEST.to_owned(), df);
 
                 self.merge_serve();
 
@@ -345,7 +340,7 @@ impl egui_dock::TabViewer for Atmerge {
         }
 
         match tab.as_str() {
-            "template" => {
+            TAB_TEMPLATE => {
 
                 ui.horizontal_wrapped(|ui|{
 
@@ -353,7 +348,7 @@ impl egui_dock::TabViewer for Atmerge {
 
                         self.state.template_file_path = prompt_for_template();
 
-                        self.dfs.remove("template");
+                        self.dfs.remove(TAB_TEMPLATE);
                     }
                     match self.state.template_file_path.clone(){
                     Some(template_file_path) => {
@@ -367,20 +362,20 @@ impl egui_dock::TabViewer for Atmerge {
 
             });
             }
-            "tests" => {
+            TAB_TEST => {
 
                 ui.horizontal_wrapped(|ui|{
 
 
-                    if ui.button("Select Test Directory").clicked() {
+                    if ui.button("Select Test Folder").clicked() {
 
                         let monitor_folder = prompt_for_folder();
     
                         if let Some(folder) = monitor_folder{
                             self.state.monitor_folder = Some(folder.clone());
                             self.test_file_path = None; // let check_for_monitor update monitor
-                            self.dfs.remove("tests");
-                            self.dfs.remove("merged");
+                            self.dfs.remove(TAB_TEST);
+                            self.dfs.remove(TAB_MERGE);
                             self.merged_file_path = None;
                         }
     
@@ -402,18 +397,14 @@ impl egui_dock::TabViewer for Atmerge {
                         ui.label(RichText::new("No tests folder selected").color(Color32::RED));
                     }
                 }
-
-
-
-
             
             });
 
             }
-            "merged" => {
+            TAB_MERGE => {
                 ui.horizontal_wrapped(|ui|{
 
-                    if ui.button("Select Merged Directory").clicked() {
+                    if ui.button("Select Merge Folder").clicked() {
 
                         let merged_folder = prompt_for_folder();
 
@@ -477,9 +468,9 @@ impl Default for MyApp {
     fn default() -> Self {
 
         let tree = DockState::new(vec![
-            "template".to_owned(), 
-            "tests".to_owned(),
-            "merged".to_owned()]);
+            TAB_TEMPLATE.to_owned(), 
+            TAB_TEST.to_owned(),
+            TAB_MERGE.to_owned()]);
 
         Self { tree, atmerge: Atmerge::default()}
     }
