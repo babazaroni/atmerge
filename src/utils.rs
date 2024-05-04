@@ -242,7 +242,7 @@ pub fn merge(df1:&DataFrame, df2:&DataFrame) -> DataFrame {
 
 static ASCII_UPPERCASE: [char;26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 
-pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathBuf,dest_path: PathBuf){
+pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf){
 
     let mut book = umya_spreadsheet::reader::xlsx::read(source_path).unwrap();
 
@@ -440,36 +440,3 @@ pub fn write_csv(df:&mut DataFrame, path:PathBuf){
     .finish(df);
 
 }
-/* 
-use polars_excel_writer::ExcelWriter;
-
-fn example(df: &mut DataFrame) -> PolarsResult<()> {
-    let mut file = std::fs::File::create("dataframe.xlsx").unwrap();
-
-    ExcelWriter::new(&mut file).with_autofit().finish(df)
-}
-*/
-
-/*
-                    if ui.button("Select Merged Directory").clicked() {
-
-                        let merged_folder = prompt_for_folder();
-
-                        if let Some(folder) = merged_folder{
-                            self.merged_folder = Some(folder.clone());
-                            self.merge_serve()
-
-                        }
-                    };
-                    match self.merged_folder.clone(){
-                        Some(merged_folder) => {
-                            ui.label(RichText::new(format!("{:?}",merged_folder)).color(Color32::GREEN));
-                        }
-                        None => {
-                            ui.label(RichText::new("No merge folder selected").color(Color32::RED));
-                        }
-                    }
-                }
-                */
-
-

@@ -82,7 +82,8 @@ struct Atmerge {
     state: State,
     table: atmerge::Table,
     dfs: BTreeMap<Title, polars::prelude::DataFrame>,
-    tests_file_path: Option<std::path::PathBuf>,
+    monitoring_folder: Option<std::path::PathBuf>,
+    test_file_path: Option<std::path::PathBuf>,
     merged_file_path: Option<std::path::PathBuf>,
     rx_main: Option<std::sync::mpsc::Receiver<Option<std::path::PathBuf>>>,
     tx_main: Option<std::sync::mpsc::Sender<Option<std::path::PathBuf>>>,
@@ -101,7 +102,8 @@ impl Default for Atmerge{
             table: atmerge::Table::default(),
             dfs: BTreeMap::new(),
 
-            tests_file_path: None,
+            monitoring_folder: None,
+            test_file_path: None,
             merged_file_path: None,
             rx_main: None,
             tx_main: None,
@@ -136,9 +138,6 @@ impl Atmerge {
 
                         let df_merged = merge(df_template,&df_filtered);
 
-                            //let merged_path = merged_folder.join(self.tests_file_path.clone().unwrap().file_name().unwrap());
-                            //let merged_path = merged_folder.join(self.template_file_path.clone().unwrap().file_name().unwrap());
-
                             let file_path = self.state.template_file_path.clone().unwrap();
                             let file_ext = file_path.file_name().unwrap().to_str().unwrap();
 
@@ -151,25 +150,19 @@ impl Atmerge {
                             let merge_name = format!("{}_{}",stripped_file_name,"test");
 
 
-
-                            //let stripped_file_name = match file.strip_suffix("_template"){
-                            //    Some(stripped_file_name) => stripped_file_name,
-                            //    None => file,
-                            //};
-
                             let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                            merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),merged_path_xlsx);
+                            merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
 
-                        
-                            let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
+                            self.merged_file_path = Some(merged_path_xlsx);                        
+                            //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
 
      
                             self.dfs.insert("merged".to_owned(), df_merged.clone());
 
-                            let dfm = & mut (df_merged.clone());
+                            //let dfm = & mut (df_merged.clone());
 
-                            self.merged_file_path = Some(merged_path_csv.clone());
+                            //self.merged_file_path = Some(merged_path_csv.clone());
 
                             //save_merged(dfm, Some(merged_path_csv));
                         
@@ -270,6 +263,22 @@ impl Atmerge {
         }
 
     }
+    fn check_for_monitor(&mut self){
+
+        if self.state.monitor_folder.is_none(){
+            return;
+        }
+
+        if let Some(monitor_folder) = self.state.monitor_folder.clone(){
+
+            if self.monitoring_folder.is_none(){
+                self.monitoring_folder = Some(monitor_folder.clone());
+                let _result = self.tx_main.as_ref().unwrap().send(Some(monitor_folder));
+            }
+    
+        }
+
+    }
 
     fn check_keyboard(&mut self,ui: &mut egui::Ui){
 
@@ -298,6 +307,8 @@ impl egui_dock::TabViewer for Atmerge {
 
         self.check_for_template();
 
+        self.check_for_monitor();
+
         self.check_keyboard(ui);
 
         if let Ok(rx_path_msg) = self.rx_main.as_ref().unwrap().try_recv() {
@@ -311,7 +322,7 @@ impl egui_dock::TabViewer for Atmerge {
 
             let df_result = load_csv(rx_path_msg.clone());
             if let Ok(df) = df_result{
-                self.tests_file_path = rx_path_msg;
+                self.test_file_path = rx_path_msg;
 
                 //println!("Read Polars DataFrame");
                 //println!("{:?}",df.width());
@@ -343,7 +354,6 @@ impl egui_dock::TabViewer for Atmerge {
                         self.state.template_file_path = prompt_for_template();
 
                         self.dfs.remove("template");
-
                     }
                     match self.state.template_file_path.clone(){
                     Some(template_file_path) => {
@@ -368,14 +378,25 @@ impl egui_dock::TabViewer for Atmerge {
     
                         if let Some(folder) = monitor_folder{
                             self.state.monitor_folder = Some(folder.clone());
-                            let _result = self.tx_main.as_ref().unwrap().send(Some(folder));
-    
+                            self.test_file_path = None; // let check_for_monitor update monitor
+                            self.dfs.remove("tests");
+                            self.dfs.remove("merged");
+                            self.merged_file_path = None;
                         }
     
-                    }                match self.state.monitor_folder.clone(){
+                    }
+                    match self.state.monitor_folder.clone(){
                     Some(monitor_folder) => {
                         let mt = format!("{:?}",monitor_folder);
                         ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
+                        match self.test_file_path.clone(){
+                            Some(test_filespath) => {
+                                let mt = format!("{:?}",test_filespath.file_name().unwrap());
+                                ui.label(RichText::new(mt.trim_matches('"')).color(Color32::LIGHT_BLUE));
+                            }
+                            None => {}
+                        }
+    
                     }
                     None => {
                         ui.label(RichText::new("No tests folder selected").color(Color32::RED));
