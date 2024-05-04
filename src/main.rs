@@ -463,7 +463,16 @@ impl Default for MyApp {
         Self { tree, atmerge: Atmerge::default()}
     }
 }
+
 impl MyApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+
+
+        let slf = MyApp::default();
+
+        slf
+    }
+
     fn bar_contents(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame, _cmd: &mut Command) {
 
         egui::widgets::global_dark_light_mode_switch(ui);
