@@ -12,6 +12,8 @@ use egui::{RichText,Color32};
 use tokio::runtime::Runtime;
 use std::time::Duration;
 
+use egui::*;
+
 //use notify::{Watcher, RecursiveMode};
 
 include!("macros.rs");
@@ -54,40 +56,39 @@ fn main() -> eframe::Result<()> {
 }
 
 
-
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+struct State{
+    monitor_folder: Option<std::path::PathBuf>,
+    merged_folder: Option<std::path::PathBuf>,
+    template_file_path: Option<std::path::PathBuf>,
+}
+impl Default for State{
+    fn default() -> Self {
+        Self{
+            monitor_folder: None,
+            merged_folder: None,
+            template_file_path: None,
+        }
+    }
+}
  
 
 type Title = String;
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
 
 struct Atmerge {
-    monitor_folder: Option<std::path::PathBuf>,
-    merged_folder: Option<std::path::PathBuf>,
-    template_file_path: Option<std::path::PathBuf>,
-
-    #[cfg_attr(feature = "serde", serde(skip))]
+    state: State,
     table: atmerge::Table,
-    #[cfg_attr(feature = "serde", serde(skip))]
     dfs: BTreeMap<Title, polars::prelude::DataFrame>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     tests_file_path: Option<std::path::PathBuf>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     merged_file_path: Option<std::path::PathBuf>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     rx_main: Option<std::sync::mpsc::Receiver<Option<std::path::PathBuf>>>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     tx_main: Option<std::sync::mpsc::Sender<Option<std::path::PathBuf>>>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     rx_update: Option<std::sync::mpsc::Receiver<bool>>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     services_started: bool,
-    #[cfg_attr(feature = "serde", serde(skip))]
     update_check: bool,
-    #[cfg_attr(feature = "serde", serde(skip))]
     releases: Option<Vec<Release>>,
-    #[cfg_attr(feature = "serde", serde(skip))]
     new_release: Option<String>,
 }
 
@@ -95,13 +96,11 @@ impl Default for Atmerge{
     fn default() -> Self {
 
         Self {
+            state:State::default(),
             table: atmerge::Table::default(),
             dfs: BTreeMap::new(),
-            monitor_folder: None,
-            merged_folder: None,
 
             tests_file_path: None,
-            template_file_path: None,
             merged_file_path: None,
             rx_main: None,
             tx_main: None,
@@ -124,7 +123,7 @@ pub fn fault(i1: i32, i2: i32) -> i32 {
 impl Atmerge {  
     fn merge_serve(&mut self){
 
-        if let Some(merged_folder) = self.merged_folder.clone(){
+        if let Some(merged_folder) = self.state.merged_folder.clone(){
 
             if let Some(df_template) = self.dfs.get("template"){
 
@@ -139,7 +138,7 @@ impl Atmerge {
                             //let merged_path = merged_folder.join(self.tests_file_path.clone().unwrap().file_name().unwrap());
                             //let merged_path = merged_folder.join(self.template_file_path.clone().unwrap().file_name().unwrap());
 
-                            let file_path = self.template_file_path.clone().unwrap();
+                            let file_path = self.state.template_file_path.clone().unwrap();
                             let file_ext = file_path.file_name().unwrap().to_str().unwrap();
 
                             let file = file_ext.split(".").collect::<Vec<&str>>()[0];
@@ -159,7 +158,7 @@ impl Atmerge {
 
                             let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                            merge_excel(&df_template,&df_filtered,self.template_file_path.clone().unwrap(),merged_path_xlsx);
+                            merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),merged_path_xlsx);
 
                         
                             let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
@@ -248,11 +247,11 @@ impl Atmerge {
 
     fn check_for_template(&mut self){
 
-        if self.template_file_path.is_none(){
+        if self.state.template_file_path.is_none(){
             return;
         }
 
-        if let Some(template_file_path) = self.template_file_path.clone(){
+        if let Some(template_file_path) = self.state.template_file_path.clone(){
 
             if self.dfs.get("template").is_none(){
                 let res = get_template(Some(template_file_path));
@@ -262,13 +261,21 @@ impl Atmerge {
                     self.merge_serve();
                     return;
                 } else {
-                    self.template_file_path = None;
+                    self.state.template_file_path = None;
                 }
 
             }
     
         }
 
+    }
+
+    fn check_keyboard(&mut self,ui: &mut egui::Ui){
+
+        if ui.ctx().input(|i| i.key_released(Key::T)) {
+            println!("\nReleased");
+            let _result = self.tx_main.as_ref().unwrap().send(None);
+        }
     }
     
 }
@@ -289,6 +296,8 @@ impl egui_dock::TabViewer for Atmerge {
         self.start_services(ui);
 
         self.check_for_template();
+
+        self.check_keyboard(ui);
 
         if let Ok(rx_path_msg) = self.rx_main.as_ref().unwrap().try_recv() {
 
@@ -330,12 +339,12 @@ impl egui_dock::TabViewer for Atmerge {
 
                     if ui.button("Open Template File").clicked() {
 
-                        self.template_file_path = prompt_for_template();
+                        self.state.template_file_path = prompt_for_template();
 
                         self.dfs.remove("template");
 
                     }
-                    match self.template_file_path.clone(){
+                    match self.state.template_file_path.clone(){
                     Some(template_file_path) => {
                         let tfp = format!("{:?}",template_file_path);
                         ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN));
@@ -357,12 +366,12 @@ impl egui_dock::TabViewer for Atmerge {
                         let monitor_folder = prompt_for_folder();
     
                         if let Some(folder) = monitor_folder{
-                            self.monitor_folder = Some(folder.clone());
+                            self.state.monitor_folder = Some(folder.clone());
                             let _result = self.tx_main.as_ref().unwrap().send(Some(folder));
     
                         }
     
-                    }                match self.monitor_folder.clone(){
+                    }                match self.state.monitor_folder.clone(){
                     Some(monitor_folder) => {
                         let mt = format!("{:?}",monitor_folder);
                         ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
@@ -387,12 +396,12 @@ impl egui_dock::TabViewer for Atmerge {
                         let merged_folder = prompt_for_folder();
 
                         if let Some(folder) = merged_folder{
-                            self.merged_folder = Some(folder.clone());
+                            self.state.merged_folder = Some(folder.clone());
                             self.merge_serve()
 
                         }
                     };
-                    match self.merged_folder.clone(){
+                    match self.state.merged_folder.clone(){
                         Some(merged_folder) => {
                             let mt = format!("{:?}",merged_folder);
                             ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
@@ -511,6 +520,9 @@ impl eframe::App for MyApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+
+
+
 
 
         let mut cmd = Command::Nothing;
