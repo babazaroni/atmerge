@@ -6,22 +6,26 @@ edition = "2021"
 
 [features]
 
+default = ["persistence"]
 
-# Enable serialization of `Tree`.
-#serde = ["dep:serde", "egui/serde"]
+persistence = ["eframe/persistence", "egui/persistence", "serde"]
+serde = ["dep:serde", "egui/serde"]
 
 [dependencies]
 
+eframe = { version = "0.27.0", features = [
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
+
+
 egui = { version = "0.27", default-features = false }
-#serde = { version = "1", optional = true, features = ["derive"] }
-serde = "1.0.200"
+
+serde = { version = "1", optional = true, features = ["derive"] }
 egui_extras = {version = "0.27.0", default-features = true}
 
 duplicate = "1.0"
 paste = "1.0"
 
-eframe = "0.27"
-#eframe = { version = "0.27",  default-features = true, features = ["persistance"]}
 
 egui_dock = {path = "../egui_dock"}
 

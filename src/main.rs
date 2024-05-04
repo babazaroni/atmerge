@@ -44,14 +44,14 @@ fn main() -> eframe::Result<()> {
     });
 
 
-    let _my_app = MyApp::default();
-
     let options = NativeOptions::default();
 
     eframe::run_native(
-        "atmerge",
+        "egui demo app",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| {         
+            Box::new(MyApp::new(cc))
+        }),
     )
 }
 
@@ -63,6 +63,7 @@ struct State{
     merged_folder: Option<std::path::PathBuf>,
     template_file_path: Option<std::path::PathBuf>,
 }
+
 impl Default for State{
     fn default() -> Self {
         Self{
@@ -442,7 +443,6 @@ impl egui_dock::TabViewer for Atmerge {
     }
 
 
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 struct MyApp {
     atmerge: Atmerge,
     tree: DockState<String>,
@@ -468,7 +468,14 @@ impl MyApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
 
 
-        let slf = MyApp::default();
+        let mut slf = MyApp::default();
+
+        #[cfg(feature = "persistence")]
+        if let Some(storage) = cc.storage {
+            if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
+                slf.atmerge.state = state;
+            }
+        }
 
         slf
     }
@@ -524,8 +531,10 @@ enum Command {
 }
 
 impl eframe::App for MyApp {
-    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        //eframe::set_value(storage, eframe::APP_KEY, self);
+
+    #[cfg(feature = "persistence")]
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, &self.atmerge.state);
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
