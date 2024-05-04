@@ -155,10 +155,10 @@ impl Atmerge {
                             merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
 
                             self.merged_file_path = Some(merged_path_xlsx);                        
-                            //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
-
      
                             self.dfs.insert("merged".to_owned(), df_merged.clone());
+
+                            //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
 
                             //let dfm = & mut (df_merged.clone());
 
