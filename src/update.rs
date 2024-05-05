@@ -5,6 +5,15 @@
 // asset name x86_64-unknown-linux-gnu
 // asset x86_64-pc-windows-msvc
 
+// go back to previous version:
+// git checkout <commit-id>
+
+// list commit ids
+// git log -n 50 --oneline^C
+
+// git checkout <commit-id>
+// git checkout main  // to go back to main branch
+
 use std::sync::mpsc::Sender;
 
 use self_update::update::Release;

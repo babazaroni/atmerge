@@ -53,7 +53,9 @@ fn main() -> eframe::Result<()> {
     }
 
 
-    let options = NativeOptions::default();
+    let mut options = NativeOptions::default();
+    
+    options.centered = true;  // works on Windows
 
     eframe::run_native(
         "Atmerge",
