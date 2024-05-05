@@ -309,6 +309,9 @@ impl Atmerge {
                 self.monitoring_folder = None;
                 self.test_file_path = None;
                 self.merged_file_path = None;
+                self.update_check = false;
+                self.releases = None;
+                self.new_release = None;
                 ui.ctx().memory_mut(|mem| *mem = Default::default());
             }
         }
