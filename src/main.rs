@@ -18,6 +18,8 @@ use self_update::update::Release;
 
 use egui_modal::{Icon, Modal};
 
+use directories::{BaseDirs,UserDirs,ProjectDirs};
+
 include!("macros.rs");
 
 
@@ -41,6 +43,13 @@ fn main() -> eframe::Result<()> {
             }
         })
     });
+
+    if let Some(base_dirs) = BaseDirs::new() {
+        // want to print out "data_dir" and "data_local_dir"
+        println!("BaseDirs: {:?}",base_dirs);
+        println!("data_dir: {:?}",base_dirs.data_dir());
+        println!("data_local_dir: {:?}",base_dirs.data_local_dir());
+    }
 
 
     let options = NativeOptions::default();
