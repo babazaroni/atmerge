@@ -46,7 +46,7 @@ fn main() -> eframe::Result<()> {
     let options = NativeOptions::default();
 
     eframe::run_native(
-        "egui demo app",
+        "Atmerge",
         options,
         Box::new(|cc| {         
             Box::new(MyApp::new(cc))
@@ -127,6 +127,8 @@ impl Atmerge {
         if let Some(merged_folder) = self.state.merged_folder.clone(){
 
             if let Some(df_template) = self.dfs.get(TAB_TEMPLATE){
+
+                //println!("df_template: {:?}",df_template.shape());
 
                 if let Some(df_tests) = self.dfs.get(TAB_TEST){
 
@@ -283,7 +285,34 @@ impl Atmerge {
         if ui.ctx().input(|i| i.key_released(Key::T)) {
             println!("\nReleased");
             let _result = self.tx_main.as_ref().unwrap().send(None);
+
+/* 
+            println!("merge_folder: {:?}",self.state.merged_folder);
+            println!("templat path: {:?}",self.state.template_file_path);
+            println!("monitor folder: {:?}",self.state.monitor_folder);
+
+            println!("monitoring_folder: {:?}",self.monitoring_folder);
+            println!("test_file_path: {:?}",self.test_file_path);
+            println!("merged_file_path: {:?}",self.merged_file_path);
+ */
         }
+        if ui.ctx().input(|i| i.key_released(Key::R)) {
+
+            let current_modifiers = ui.input(|i| i.modifiers);
+            if current_modifiers.matches_exact(Modifiers::CTRL) {
+
+                println!("\nReset");
+                self.state = Default::default();
+                self.dfs.remove(TAB_TEMPLATE);
+                self.dfs.remove(TAB_TEST);
+                self.dfs.remove(TAB_MERGE);
+                self.monitoring_folder = None;
+                self.test_file_path = None;
+                self.merged_file_path = None;
+                ui.ctx().memory_mut(|mem| *mem = Default::default());
+            }
+        }
+
     }
     
 }

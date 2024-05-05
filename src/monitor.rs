@@ -2,39 +2,7 @@
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-/* 
-#[derive(Debug,Clone)]
-pub struct MonitorChannelsTx{
-    tx_monitor: Sender<PathBuf>,
-    tx_main: Sender<Option<PathBuf>>,
-}
-pub struct MonitorChannelsRx{
-    pub rx_monitor: Receiver<Option<PathBuf>>,
-    pub rx_main: Receiver<PathBuf>,
-}
 
-pub struct MonitorChannels{
-    pub monitor_channels_tx: MonitorChannelsTx,
-    pub monitor_channels_rx: MonitorChannelsRx,
-}
-
-impl Default for MonitorChannels{
-    fn default() -> Self {
-        let (tx_monitor, rx_main) = std::sync::mpsc::channel();
-        let (tx_main, rx_monitor) = std::sync::mpsc::channel();
-        Self {
-            monitor_channels_tx: MonitorChannelsTx{
-                tx_monitor,
-                tx_main,
-            },
-            monitor_channels_rx: MonitorChannelsRx{
-                rx_monitor,
-                rx_main,
-            }
-        }
-    }
-}
-*/
 pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_monitor:Receiver<Option<PathBuf>>) {
 
 
@@ -51,19 +19,19 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
                     if rx_path_msg.is_some() {
                         monitor_path = rx_path_msg;
                         last_modified_time = Some(std::time::SystemTime::now());
-                        println!("monitor_path: {:?}",monitor_path);
+                        println!("monitor_path1: {:?}",monitor_path);
                     } else{
                         force_load = true;
                     }
                 },
                 Err(_) => {}
             }
-            if let Ok(rx_path_msg) = rx_monitor.try_recv() {
-                monitor_path = rx_path_msg;
-                last_modified_time = Some(std::time::SystemTime::now());
-                println!("monitor_path: {:?}",monitor_path);
+ //           if let Ok(rx_path_msg) = rx_monitor.try_recv() {
+ //               monitor_path = rx_path_msg;
+ //               last_modified_time = Some(std::time::SystemTime::now());
+ //               println!("monitor_path2: {:?}",monitor_path);
 
-            }
+ //           }
 
             if let Some(path) = monitor_path.clone(){
                 let last_modified_file = std::fs::read_dir(path)
