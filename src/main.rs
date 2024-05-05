@@ -49,6 +49,7 @@ fn main() -> eframe::Result<()> {
         println!("BaseDirs: {:?}",base_dirs);
         println!("data_dir: {:?}",base_dirs.data_dir());
         println!("data_local_dir: {:?}",base_dirs.data_local_dir());
+        println!("state_dir: {:?}",base_dirs.state_dir());
     }
 
 
