@@ -54,6 +54,7 @@ semver = "1.0.22"
 
 egui-modal = "0.3.6"
 
-
 umya-spreadsheet = "1.2.3"
+win-beep = "1.0.3"
+
 

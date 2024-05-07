@@ -14,6 +14,9 @@
 // git checkout <commit-id>
 // git checkout main  // to go back to main branch
 
+// jump to latest commit on origin/main and checkout those files
+// git reset --hard origin/main
+
 use std::sync::mpsc::Sender;
 
 use self_update::update::Release;

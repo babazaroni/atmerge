@@ -20,6 +20,8 @@ use egui_modal::{Icon, Modal};
 
 use directories::{BaseDirs,UserDirs,ProjectDirs};
 
+use win_beep;
+
 include!("macros.rs");
 
 
@@ -133,7 +135,17 @@ pub fn fault(i1: i32, i2: i32) -> i32 {
     i1 / i2
 }
 
-impl Atmerge {  
+impl Atmerge { 
+    #[cfg(target_os = "windows")]
+    fn beep(&mut self){
+        win_beep::beep(1000, 100);
+    }
+
+    #[cfg(target_os = "linux")] 
+    fn beep(&mut self){
+        println!("beep");
+    }
+    
     fn merge_serve(&mut self){
 
         if let Some(merged_folder) = self.state.merged_folder.clone(){
@@ -170,6 +182,10 @@ impl Atmerge {
      
                             self.dfs.insert(TAB_MERGE.to_owned(), df_merged.clone());
 
+
+                            self.beep();
+
+
                             //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
 
                             //let dfm = & mut (df_merged.clone());
@@ -202,6 +218,7 @@ impl Atmerge {
             atmerge::start_monitor(ui.ctx().clone(),tx_monitor,rx_monitor);
         }
     }
+
 
     fn confirm_update_modal(&mut self, ui: &mut egui::Ui) ->Modal{
 

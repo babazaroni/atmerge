@@ -293,6 +293,7 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
 
     let _ = umya_spreadsheet::writer::xlsx::write(&mut book, dest_path);
 
+
 }
 
 fn get_pass_fail_column(columns:Vec<Series>) -> Option<Series>{
