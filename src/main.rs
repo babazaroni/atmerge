@@ -138,7 +138,7 @@ pub fn fault(i1: i32, i2: i32) -> i32 {
 impl Atmerge { 
     #[cfg(target_os = "windows")]
     fn beep(&mut self){
-        win_beep::beep(1000, 100);
+        win_beep::beep_with_hz_and_millis(440, 100);
     }
 
     #[cfg(target_os = "linux")] 
