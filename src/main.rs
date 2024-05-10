@@ -173,7 +173,12 @@ impl Atmerge {
                             stripped_file_name = stripped_file_name.split("_Template").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" template").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" Template").collect::<Vec<&str>>()[0];
-                            let merge_name = format!("{}_{}",stripped_file_name,"merge");
+                            stripped_file_name = stripped_file_name.split("_data").collect::<Vec<&str>>()[0];
+                            stripped_file_name = stripped_file_name.split("_Data").collect::<Vec<&str>>()[0];
+                            stripped_file_name = stripped_file_name.split(" data").collect::<Vec<&str>>()[0];
+                            stripped_file_name = stripped_file_name.split(" Data").collect::<Vec<&str>>()[0];
+                            //let merge_name = format!("{}_{}",stripped_file_name,"merge");
+                            let merge_name = stripped_file_name;
 
 
                             let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
@@ -589,7 +594,7 @@ impl MyApp {
                 .selected_text(format!("Current Version: {}",current_value))
                 .show_ui(ui, |ui| {
                     for release in releases {
-                        ui.selectable_value(current_value, release.version.clone(), release.version.clone());
+                        ui.selectable_value(current_value, release.version.clone(), release.version.clone()).on_hover_text_at_pointer(release.body.clone().unwrap());
                     }
                 });
                 if current_value != &cargo_crate_version!(){

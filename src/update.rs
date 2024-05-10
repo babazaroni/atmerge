@@ -60,7 +60,7 @@ pub fn get_newer_release() -> Result<Option<Release>, Box<dyn ::std::error::Erro
 
 pub fn atmerge_self_update(target_version:String) -> Result<(), Box<dyn ::std::error::Error>> {
 
-    get_releases()?;
+    //get_releases()?;
 
     let mut status_builder = self_update::backends::github::Update::configure();
 
