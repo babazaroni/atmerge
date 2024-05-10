@@ -105,6 +105,7 @@ struct Atmerge {
     update_check: bool,
     releases: Option<Vec<Release>>,
     new_release: Option<String>,
+    show_versions: bool,
 }
 
 impl Default for Atmerge{
@@ -127,6 +128,7 @@ impl Default for Atmerge{
             update_check: false,
             releases: None,
             new_release: None,
+            show_versions: false,
         }
     }
 }
@@ -342,6 +344,12 @@ impl Atmerge {
                 self.releases = None;
                 self.new_release = None;
                 ui.ctx().memory_mut(|mem| *mem = Default::default());
+            }
+        }
+        if ui.ctx().input(|i| i.key_released(Key::V)) {
+
+            if ui.input(|i| i.modifiers).matches_exact(Modifiers::CTRL) {
+                self.show_versions = !self.show_versions;
             }
         }
 
@@ -571,6 +579,8 @@ impl MyApp {
     //    }
     //    else {
 
+        if self.atmerge.show_versions{
+
             if let Some(releases) = self.atmerge.releases.clone(){
 
                 let current_value = &mut cargo_crate_version!().to_string().clone();
@@ -589,6 +599,7 @@ impl MyApp {
 
                     println!("current_value: {:?}",current_value);
                 }
+            }
 //            }
         }
 
