@@ -6,7 +6,7 @@ edition = "2021"
 
 [features]
 
-default = ["persistence"]
+#default = ["persistence"]
 
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
 serde = ["dep:serde", "egui/serde"]
@@ -56,5 +56,8 @@ egui-modal = "0.3.6"
 
 umya-spreadsheet = "1.2.3"
 win-beep = "1.0.3"
+
+crashreport ="^1.0.1"
+
 
 

@@ -35,7 +35,7 @@ pub fn get_releases() -> Result<Vec<Release>, Box<dyn ::std::error::Error>> {
 
     let releases = rel_builder.repo_name("atmerge").build()?.fetch()?;
 
-    println!("get releases returning");
+    //println!("get releases returning");
     Ok(releases)
 }
 

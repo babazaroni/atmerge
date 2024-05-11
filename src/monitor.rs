@@ -19,7 +19,7 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
                     if rx_path_msg.is_some() {
                         monitor_path = rx_path_msg;
                         last_modified_time = Some(std::time::SystemTime::now());
-                        println!("monitor_path1: {:?}",monitor_path);
+                        //println!("monitor_path1: {:?}",monitor_path);
                     } else{
                         force_load = true;
                     }

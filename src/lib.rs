@@ -4,7 +4,7 @@ mod table;
 pub use table::Table;
 mod utils;
 pub use utils::{prompt_for_csv,prompt_for_excel,prompt_for_folder,clean_df_val};
-pub use utils::{load_csv,merge,save_merged,merge_excel,filter,prompt_for_template,get_template};
+pub use utils::{load_csv,merge,save_merged,merge_excel,filter,prompt_for_template,get_template,get_paths_from_part_folder};
 mod monitor;
 pub use monitor::start_monitor;
 mod update;

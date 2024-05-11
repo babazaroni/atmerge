@@ -2,7 +2,7 @@
 
 
 use atmerge::{atmerge_self_update,load_csv, merge};
-use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter,get_paths_from_part_folder};
 use atmerge::get_template;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
@@ -22,15 +22,20 @@ use directories::{BaseDirs,UserDirs,ProjectDirs};
 
 use win_beep;
 
+#[macro_use]
+extern crate crashreport;
+
 include!("macros.rs");
 
 
 
 const TAB_TEMPLATE: &str = "template";
-const TAB_TEST: &str = "test";
-const TAB_MERGE: &str = "merge";
+const TAB_TEST: &str = "results";
+const TAB_MERGE: &str = "report";
 
 fn main() -> eframe::Result<()> {
+    crashreport!();
+
     let rt = Runtime::new().expect("Unable to create Runtime");
 
     // Enter the runtime so that `tokio::spawn` is available immediately.
@@ -45,6 +50,7 @@ fn main() -> eframe::Result<()> {
             }
         })
     });
+/*
 
     if let Some(base_dirs) = BaseDirs::new() {
         // want to print out "data_dir" and "data_local_dir"
@@ -53,12 +59,15 @@ fn main() -> eframe::Result<()> {
         println!("data_local_dir: {:?}",base_dirs.data_local_dir());
         println!("state_dir: {:?}",base_dirs.state_dir());
     }
+*/
 
 
     let mut options = NativeOptions::default();
     
     options.centered = true;  // works on Windows
-
+    
+    //panic!("This is a panic");
+    
     eframe::run_native(
         "Atmerge",
         options,
@@ -66,6 +75,16 @@ fn main() -> eframe::Result<()> {
             Box::new(MyApp::new(cc))
         }),
     )
+
+}
+
+pub fn divide(a: f64, b: f64) -> f64 {
+    let d: Option<u32> = None;
+    println!("Dividing {} by {}", a, b);
+    let c = a / b;
+    println!("Result: {}", c);
+    d.unwrap();
+    c
 }
 
 
@@ -75,7 +94,9 @@ struct State{
     monitor_folder: Option<std::path::PathBuf>,
     merged_folder: Option<std::path::PathBuf>,
     template_file_path: Option<std::path::PathBuf>,
+    part_folder: Option<std::path::PathBuf>,
 }
+
 
 impl Default for State{
     fn default() -> Self {
@@ -83,6 +104,7 @@ impl Default for State{
             monitor_folder: None,
             merged_folder: None,
             template_file_path: None,
+            part_folder: None,
         }
     }
 }
@@ -319,8 +341,10 @@ impl Atmerge {
     fn check_keyboard(&mut self,ui: &mut egui::Ui){
 
         if ui.ctx().input(|i| i.key_released(Key::T)) {
-            println!("\nReleased");
+            //println!("\nReleased");
             let _result = self.tx_main.as_ref().unwrap().send(None);
+
+            //divide(1.0, 0.0);
 
 /* 
             println!("merge_folder: {:?}",self.state.merged_folder);
@@ -385,7 +409,7 @@ impl egui_dock::TabViewer for Atmerge {
 
         if let Ok(rx_path_msg) = self.rx_main.as_ref().unwrap().try_recv() {
 
-            println!("rx_path_msg: {:?}",rx_path_msg);
+            //println!("rx_path_msg: {:?}",rx_path_msg);
 
             if rx_path_msg == self.merged_file_path{
                 return;
@@ -418,7 +442,7 @@ impl egui_dock::TabViewer for Atmerge {
 
                 ui.horizontal_wrapped(|ui|{
 
-                    if ui.button("Open Template File").clicked() {
+                    if ui.button(format!("Open {TAB_TEMPLATE} file")).clicked() {
 
                         self.state.template_file_path = prompt_for_template();
 
@@ -430,7 +454,7 @@ impl egui_dock::TabViewer for Atmerge {
                         ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN));
                     }
                     None => {
-                        ui.label(RichText::new("No template file selected").color(Color32::RED));
+                        ui.label(RichText::new(format!("No {TAB_TEMPLATE} file selected")).color(Color32::RED));
                     }
                 }
 
@@ -441,7 +465,7 @@ impl egui_dock::TabViewer for Atmerge {
                 ui.horizontal_wrapped(|ui|{
 
 
-                    if ui.button("Select Test Folder").clicked() {
+                    if ui.button(format!("Select {TAB_TEST} folder")).clicked() {
 
                         let monitor_folder = prompt_for_folder();
     
@@ -468,7 +492,7 @@ impl egui_dock::TabViewer for Atmerge {
     
                     }
                     None => {
-                        ui.label(RichText::new("No tests folder selected").color(Color32::RED));
+                        ui.label(RichText::new(format!("No {TAB_TEST} folder selected")).color(Color32::RED));
                     }
                 }
             
@@ -478,7 +502,7 @@ impl egui_dock::TabViewer for Atmerge {
             TAB_MERGE => {
                 ui.horizontal_wrapped(|ui|{
 
-                    if ui.button("Select Merge Folder").clicked() {
+                    if ui.button(format!("Select {TAB_MERGE} folder")).clicked() {
 
                         let merged_folder = prompt_for_folder();
 
@@ -494,7 +518,7 @@ impl egui_dock::TabViewer for Atmerge {
                             ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
                         }
                         None => {
-                            ui.label(RichText::new("No merge folder selected").color(Color32::RED));
+                            ui.label(RichText::new(format!("No {TAB_MERGE} folder selected")).color(Color32::RED));
                         }
                     }
                     match self.merged_file_path.clone(){
@@ -583,6 +607,24 @@ impl MyApp {
 
     //    }
     //    else {
+
+        if ui.button("Select Part Folder").clicked() {
+            self.atmerge.state.part_folder = prompt_for_folder();
+            let folders = get_paths_from_part_folder(self.atmerge.state.part_folder.clone());
+            
+            self.atmerge.state.monitor_folder = folders.0;
+            self.atmerge.state.merged_folder = folders.1;
+            self.atmerge.state.template_file_path = folders.2;
+        }
+        match self.atmerge.state.part_folder.clone(){
+            Some(part_folder_path) => {
+                let pfp = format!("{:?}",part_folder_path);
+                ui.label(RichText::new(pfp.trim_matches('"')).color(Color32::GREEN));
+            }
+            None => {
+                ui.label(RichText::new("No part folder selected").color(Color32::RED));
+            }
+        }
 
         if self.atmerge.show_versions{
 

@@ -87,6 +87,43 @@ pub fn prompt_for_folder() ->Option<std::path::PathBuf>{
     None
 }
 
+pub fn get_paths_from_part_folder(path: Option<PathBuf>) -> (Option<std::path::PathBuf>,Option<std::path::PathBuf>,Option<std::path::PathBuf>){
+
+    let mut result_path: Option<PathBuf> = None;
+    let mut report_path: Option<PathBuf> = None;
+    let mut template_path: Option<PathBuf> = None;
+
+
+    if let Some(picked_path) = path {
+
+        let entries = std::fs::read_dir(picked_path)
+        .unwrap();
+
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                    let path_str = path.to_str().unwrap().to_ascii_lowercase();
+                if path.is_dir(){
+                    if result_path.is_none() &&  path_str.contains("result"){
+                        result_path = Some(path.clone());
+                    }
+                    if report_path.is_none() &&  path_str.contains("report"){
+                        report_path = Some(path.clone());
+                    }
+                }
+                if path.is_file(){
+                    if template_path.is_none() &&  path_str.contains("template"){
+                        template_path = Some(path.clone());
+                    }
+                }
+            }
+
+
+        }
+    }
+    (result_path,report_path,template_path)
+}
+
 pub fn load_csv(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
     if let Some(picked_path) = path {
 
@@ -156,10 +193,9 @@ pub fn get_template(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
         let first_sheet = sheets[0].clone();
 
         if let Ok(range) = workbook.worksheet_range(&first_sheet) {
-            let total_cells = range.get_size().0 * range.get_size().1;
+            //let total_cells = range.get_size().0 * range.get_size().1;
             let non_empty_cells: usize = range.used_cells().count();
-            println!("Found {} cells in '{}', including {} non empty cells",
-                     total_cells, first_sheet,non_empty_cells);
+            //println!("Found {} cells in '{}', including {} non empty cells",total_cells, first_sheet,non_empty_cells);
             // alternatively, we can manually filter rows
             assert_eq!(non_empty_cells, range.rows()
                 .flat_map(|r| r.iter().filter(|&c| c != &Data::Empty)).count());
