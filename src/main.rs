@@ -609,12 +609,16 @@ impl MyApp {
     //    else {
 
         if ui.button("Select Part Folder").clicked() {
-            self.atmerge.state.part_folder = prompt_for_folder();
-            let folders = get_paths_from_part_folder(self.atmerge.state.part_folder.clone());
-            
-            self.atmerge.state.monitor_folder = folders.0;
-            self.atmerge.state.merged_folder = folders.1;
-            self.atmerge.state.template_file_path = folders.2;
+            let part_folder = prompt_for_folder();
+
+            if part_folder.is_some(){
+                self.atmerge.state.part_folder = part_folder;
+                let folders = get_paths_from_part_folder(self.atmerge.state.part_folder.clone());
+
+                self.atmerge.state.monitor_folder = folders.0;
+                self.atmerge.state.merged_folder = folders.1;
+                self.atmerge.state.template_file_path = folders.2;
+            }
         }
         match self.atmerge.state.part_folder.clone(){
             Some(part_folder_path) => {
