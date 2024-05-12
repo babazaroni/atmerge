@@ -314,9 +314,8 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
         let column = column.rechunk();  // do this or iterating will crash
         for (rnum,entry) in column.iter().enumerate(){
             let val = match entry{
-                polars::datatypes::AnyValue::Utf8(val) => val,
-                _ => "_"
-
+                polars::datatypes::AnyValue::Utf8(val) => val.trim_matches( '"'),
+                _ => ""
             };
             let header = format!("{}{}",ASCII_UPPERCASE[cnum].to_string(),rnum + test_row.unwrap());
             let _ = book
@@ -327,9 +326,52 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
         }
     }
 
+    edit_excel(&mut book,test_row.unwrap());
+
     let _ = umya_spreadsheet::writer::xlsx::write(&mut book, dest_path);
 
 
+}
+
+fn edit_excel(book: &mut umya_spreadsheet::Spreadsheet,test_row:usize){
+    let mut row = test_row + 5;
+
+    let mut state = PARSESTATES::START;
+
+    let mut test_num = 1;
+
+    loop {
+        let header = format!("A{}",row);
+        let v = book
+            .get_sheet_mut(&0)
+            .unwrap()
+            .get_cell_mut(header);
+
+
+
+            let mut cell_value = v.get_value().to_uppercase();
+            cell_value = cell_value.trim_matches('"').to_string();
+            match state{
+                PARSESTATES::START => {
+                    if cell_value == ""{
+                        break;
+                    }
+                    v.set_value(format!("{}",test_num));
+                    test_num += 1;
+                    state = PARSESTATES::END;
+                },
+                PARSESTATES::END => {
+                    v.set_value("");
+                    if cell_value == ""{
+                        state = PARSESTATES::START;
+                    }
+                }
+            }
+        
+
+        row += 1;
+    
+    }
 }
 
 fn get_pass_fail_column(columns:Vec<Series>) -> Option<Series>{

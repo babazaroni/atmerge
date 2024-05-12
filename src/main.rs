@@ -575,10 +575,10 @@ impl Default for MyApp {
 }
 
 impl MyApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
 
 
-        let mut slf = MyApp::default();
+        let slf = MyApp::default();
 
         #[cfg(feature = "persistence")]
         if let Some(storage) = cc.storage {
@@ -612,8 +612,8 @@ impl MyApp {
             let part_folder = prompt_for_folder();
 
             if part_folder.is_some(){
-                self.atmerge.state.part_folder = part_folder;
-                let folders = get_paths_from_part_folder(self.atmerge.state.part_folder.clone());
+                self.atmerge.state.part_folder = part_folder.clone();
+                let folders = get_paths_from_part_folder(part_folder);
 
                 self.atmerge.state.monitor_folder = folders.0;
                 self.atmerge.state.merged_folder = folders.1;
