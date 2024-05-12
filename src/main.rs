@@ -199,8 +199,8 @@ impl Atmerge {
                             stripped_file_name = stripped_file_name.split("_Data").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" data").collect::<Vec<&str>>()[0];
                             stripped_file_name = stripped_file_name.split(" Data").collect::<Vec<&str>>()[0];
-                            //let merge_name = format!("{}_{}",stripped_file_name,"merge");
-                            let merge_name = stripped_file_name;
+                            let merge_name = format!("{} {}",stripped_file_name,"Report");
+                            //let merge_name = stripped_file_name;
 
 
                             let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
