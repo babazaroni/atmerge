@@ -3,7 +3,7 @@
 
 use atmerge::{atmerge_self_update,load_csv, merge};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter,get_paths_from_part_folder};
-use atmerge::get_template;
+use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
 use std::collections::BTreeMap;
@@ -184,35 +184,36 @@ impl Atmerge {
 
 
 
-                        let df_merged = merge(df_template,&df_filtered);
+                        //let df_merged = merge(df_template,&df_filtered);
 
-                            let file_path = self.state.template_file_path.clone().unwrap();
-                            let file_ext = file_path.file_name().unwrap().to_str().unwrap();
+                        let file_path = self.state.template_file_path.clone().unwrap();
+                        let file_ext = file_path.file_name().unwrap().to_str().unwrap();
 
-                            let file = file_ext.split(".").collect::<Vec<&str>>()[0];
+                        let file = file_ext.split(".").collect::<Vec<&str>>()[0];
 
-                            let mut stripped_file_name = file.split("_template").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split("_Template").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split(" template").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split(" Template").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split("_data").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split("_Data").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split(" data").collect::<Vec<&str>>()[0];
-                            stripped_file_name = stripped_file_name.split(" Data").collect::<Vec<&str>>()[0];
-                            let merge_name = format!("{} {}",stripped_file_name,"Report");
-                            //let merge_name = stripped_file_name;
+                        let mut stripped_file_name = file.split("_template").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split("_Template").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split(" template").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split(" Template").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split("_data").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split("_Data").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split(" data").collect::<Vec<&str>>()[0];
+                        stripped_file_name = stripped_file_name.split(" Data").collect::<Vec<&str>>()[0];
+                        let merge_name = format!("{} {}",stripped_file_name,"Report");
+                        //let merge_name = stripped_file_name;
 
 
-                            let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
+                        let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                            merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
+                        merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
 
-                            self.merged_file_path = Some(merged_path_xlsx);                        
+                        self.merged_file_path = Some(merged_path_xlsx);
+
+                        let df_merged = get_df_from_xlsx(self.merged_file_path.clone());                        
      
-                            self.dfs.insert(TAB_MERGE.to_owned(), df_merged.clone());
+                        self.dfs.insert(TAB_MERGE.to_owned(), df_merged.unwrap());
 
-
-                            self.beep();
+                        self.beep();
 
 
                             //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
@@ -306,7 +307,7 @@ impl Atmerge {
         if let Some(template_file_path) = self.state.template_file_path.clone(){
 
             if self.dfs.get(TAB_TEMPLATE).is_none(){
-                let res = get_template(Some(template_file_path));
+                let res = get_df_from_xlsx(Some(template_file_path));
 
                 if let Ok(df) = res{
                     self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
@@ -338,6 +339,21 @@ impl Atmerge {
 
     }
 
+    fn reset(&mut self,ui: &mut egui::Ui){
+        println!("\nReset");
+        self.state = Default::default();
+        self.dfs.remove(TAB_TEMPLATE);
+        self.dfs.remove(TAB_TEST);
+        self.dfs.remove(TAB_MERGE);
+        self.monitoring_folder = None;
+        self.test_file_path = None;
+        self.merged_file_path = None;
+        self.update_check = false;
+        self.releases = None;
+        self.new_release = None;
+        ui.ctx().memory_mut(|mem| *mem = Default::default());
+    }
+
     fn check_keyboard(&mut self,ui: &mut egui::Ui){
 
         if ui.ctx().input(|i| i.key_released(Key::T)) {
@@ -361,18 +377,8 @@ impl Atmerge {
             let current_modifiers = ui.input(|i| i.modifiers);
             if current_modifiers.matches_exact(Modifiers::CTRL) {
 
-                println!("\nReset");
-                self.state = Default::default();
-                self.dfs.remove(TAB_TEMPLATE);
-                self.dfs.remove(TAB_TEST);
-                self.dfs.remove(TAB_MERGE);
-                self.monitoring_folder = None;
-                self.test_file_path = None;
-                self.merged_file_path = None;
-                self.update_check = false;
-                self.releases = None;
-                self.new_release = None;
-                ui.ctx().memory_mut(|mem| *mem = Default::default());
+                self.reset(ui);
+
             }
         }
         if ui.ctx().input(|i| i.key_released(Key::V)) {
@@ -612,7 +618,11 @@ impl MyApp {
             let part_folder = prompt_for_folder();
 
             if part_folder.is_some(){
+
+                self.atmerge.reset(ui);
+
                 self.atmerge.state.part_folder = part_folder.clone();
+
                 let folders = get_paths_from_part_folder(part_folder);
 
                 self.atmerge.state.monitor_folder = folders.0;

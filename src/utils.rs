@@ -170,7 +170,7 @@ pub fn prompt_for_template()->Option<PathBuf>{
     return path
 }
 
-pub fn get_template(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
+pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
     if let Some(picked_path) = path {
         if picked_path.exists() == false{
@@ -236,7 +236,7 @@ pub fn prompt_for_excel() -> PolarsResult<DataFrame> {
 
     let path = prompt_for_template();
 
-    get_template(path)
+    get_df_from_xlsx(path)
 
 }
 
@@ -287,6 +287,8 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
 
     let mut test_row: Option<usize> = None;
 
+
+
     for row in 1..50{
         let header = format!("A{}",row);
         let v = book
@@ -297,14 +299,14 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
         if let Some(cell) = v{
             let val = cell.get_value();
             if val.to_uppercase() == "TESTS" {
-                test_row = Some(row);
+                //test_row = Some(row);
                 break;
             }
         }
     }
 
     if test_row.is_none(){
-        test_row = Some(df_template.shape().0);
+        test_row = Some(df_template.shape().0 + 4);
         println!("No 'Tests' row found in template, using {}",test_row.unwrap());
     }
 

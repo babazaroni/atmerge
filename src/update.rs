@@ -2,6 +2,9 @@
 // git push origin v0.1.0  only pushes tag
 // git push
 
+// git tag -d v0.1.0  to delete tag
+// git tag  (list tags)
+
 // asset name x86_64-unknown-linux-gnu
 // asset x86_64-pc-windows-msvc
 
