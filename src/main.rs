@@ -23,7 +23,7 @@ use directories::{BaseDirs,UserDirs,ProjectDirs};
 use win_beep;
 
 use std::backtrace::Backtrace;
-use std::fs;
+use std::{env, fs};
 
 #[macro_use]
 extern crate crashreport;
@@ -43,8 +43,14 @@ fn main() -> eframe::Result<()> {
     std::panic::set_hook(Box::new(|_panic_info| {
 
         let backtrace = std::backtrace::Backtrace::force_capture();
+
+        let mut path = env::current_exe().unwrap();
+
+        path.set_file_name("CrashReport.txt");
+
+
         eprintln!("My backtrace: {:#?}",backtrace);
-        let _res = fs::write("./CrashReport.txt",format!("{:#?}",backtrace));
+        let _res = fs::write(path,format!("{:#?}",backtrace));
 
     }));
  
@@ -77,9 +83,8 @@ fn main() -> eframe::Result<()> {
 
     let mut options = NativeOptions::default();
     
-    options.centered = true;  // works on Windows
+    options.centered = true;  // works on Windows to keep the window from wandering off screen
     
-    //panic!("This is a panic");
     
     eframe::run_native(
         "Atmerge",
@@ -279,14 +284,7 @@ impl Atmerge {
 
         let confirm_update_modal = Modal::new(ui.ctx(), "my_modal");
 
-        // What goes inside the modal
         confirm_update_modal.show(|ui| {
-            // these helper functions help set the ui based on the modal's
-            // set style, but they are not required and you can put whatever
-            // ui you want inside [`.show()`]
-            //modal.title(ui, "");
-
-            //println!("self.update_state: {:?}",self.update_state);
 
             match self.update_state {
 
@@ -295,7 +293,6 @@ impl Atmerge {
                         confirm_update_modal.body(ui, "Are you sure you want to change versions?");
                     });
                     confirm_update_modal.buttons(ui, |ui| {
-                        // After clicking, the modal is automatically closed
                         if confirm_update_modal.button(ui, "Proceed with new version").clicked() {
                             self.update_state = UpdateState::UPDATING1;
                             confirm_update_modal.open();
@@ -304,28 +301,23 @@ impl Atmerge {
     
                         } else{
                             if confirm_update_modal.button(ui, "Cancel update").clicked() {
-                                confirm_update_modal.close();
+                                //confirm_update_modal.close();
                                 println!("Cancel update")
                             };
                         }
                     }); 
-
-                },
+                }
                 UpdateState::UPDATING1 => {
                     println!("Updating......");
                     confirm_update_modal.frame(ui, |ui| {
                         confirm_update_modal.body(ui, "Updating......");
                     });
                     self.update_state = UpdateState::UPDATING2;
-                },
+                }
                 UpdateState::UPDATING2 => {
-                    confirm_update_modal.frame(ui, |ui| {
-                        confirm_update_modal.body(ui, "Updating......");
-                    });
-
                     self.update_results = atmerge_self_update(format!("v{}",self.new_release.clone().unwrap()));
                     self.update_state = UpdateState::RESULTS;
-
+                    ui.ctx().request_repaint();
                 }
                 UpdateState::RESULTS => {
                     if let Ok(_res) = self.update_results{
@@ -415,15 +407,6 @@ impl Atmerge {
 
             //panic!("panic in keyboard");
 
-/* 
-            println!("merge_folder: {:?}",self.state.merged_folder);
-            println!("templat path: {:?}",self.state.template_file_path);
-            println!("monitor folder: {:?}",self.state.monitor_folder);
-
-            println!("monitoring_folder: {:?}",self.monitoring_folder);
-            println!("test_file_path: {:?}",self.test_file_path);
-            println!("merged_file_path: {:?}",self.merged_file_path);
- */
         }
         if ui.ctx().input(|i| i.key_released(Key::R)) {
 
