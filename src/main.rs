@@ -171,7 +171,7 @@ impl Default for Atmerge{
             update_check: false,
             releases: None,
             new_release: None,
-            show_versions: true,
+            show_versions: false,
             update_state: UpdateState::CONFIRMUPDATE,
             update_results: Ok(()),
         }
