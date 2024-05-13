@@ -141,6 +141,9 @@ struct Atmerge {
     releases: Option<Vec<Release>>,
     new_release: Option<String>,
     show_versions: bool,
+    update_state: UpdateState,
+    update_results: Result<(), Box<dyn ::std::error::Error>>
+
 }
 
 impl Default for Atmerge{
@@ -163,13 +166,18 @@ impl Default for Atmerge{
             update_check: false,
             releases: None,
             new_release: None,
-            show_versions: false,
+            show_versions: true,
+            update_state: UpdateState::CONFIRMUPDATE,
+            update_results: Ok(()),
         }
     }
 }
-
-pub fn fault(i1: i32, i2: i32) -> i32 {
-    i1 / i2
+#[derive(Clone, Copy, Debug)]
+enum UpdateState {
+    CONFIRMUPDATE,
+    UPDATING1,
+    UPDATING2,
+    RESULTS
 }
 
 impl Atmerge { 
@@ -277,34 +285,66 @@ impl Atmerge {
             // set style, but they are not required and you can put whatever
             // ui you want inside [`.show()`]
             //modal.title(ui, "");
-            confirm_update_modal.frame(ui, |ui| {
-                confirm_update_modal.body(ui, "Are you sure you want to change versions?");
-            });
-            confirm_update_modal.buttons(ui, |ui| {
-                // After clicking, the modal is automatically closed
-                if confirm_update_modal.button(ui, "Proceed with new version").clicked() {
-                    println!("Proceed with change");
-                    let res = atmerge_self_update(format!("v{}",self.new_release.clone().unwrap()));
-                    println!("atmerge_self_update res: {:?}",res);
-                    if let Ok(_res) = res{
+
+            //println!("self.update_state: {:?}",self.update_state);
+
+            match self.update_state {
+
+                UpdateState::CONFIRMUPDATE => {
+                    confirm_update_modal.frame(ui, |ui| {
+                        confirm_update_modal.body(ui, "Are you sure you want to change versions?");
+                    });
+                    confirm_update_modal.buttons(ui, |ui| {
+                        // After clicking, the modal is automatically closed
+                        if confirm_update_modal.button(ui, "Proceed with new version").clicked() {
+                            self.update_state = UpdateState::UPDATING1;
+                            confirm_update_modal.open();
+                            println!("Proceed with change");
+                            ui.ctx().request_repaint();
+    
+                        } else{
+                            if confirm_update_modal.button(ui, "Cancel update").clicked() {
+                                confirm_update_modal.close();
+                                println!("Cancel update")
+                            };
+                        }
+                    }); 
+
+                },
+                UpdateState::UPDATING1 => {
+                    println!("Updating......");
+                    confirm_update_modal.frame(ui, |ui| {
+                        confirm_update_modal.body(ui, "Updating......");
+                    });
+                    self.update_state = UpdateState::UPDATING2;
+                },
+                UpdateState::UPDATING2 => {
+                    confirm_update_modal.frame(ui, |ui| {
+                        confirm_update_modal.body(ui, "Updating......");
+                    });
+
+                    self.update_results = atmerge_self_update(format!("v{}",self.new_release.clone().unwrap()));
+                    self.update_state = UpdateState::RESULTS;
+
+                }
+                UpdateState::RESULTS => {
+                    if let Ok(_res) = self.update_results{
                         update_complete_modal.dialog()
                         //.with_title("my_function's result is...")
                         .with_body("Update Complete.  Restart to use new version")
                         .with_icon(Icon::Success)
-                        .open()
+                        .open();
                     } else {
                         update_complete_modal.dialog()
                         //.with_title("my_function's result is...")
-                        .with_body(format!("Update Failed: {:?}",res))
+                        .with_body(format!("Update Failed: {:?}",self.update_results))
                         .with_icon(Icon::Error)
-                        .open()
+                        .open();
                     }
+                    confirm_update_modal.close();
+                }
+            }
 
-                };
-                if confirm_update_modal.button(ui, "Cancel change").clicked() {
-                    println!("Cancel update")
-                };
-            }); 
         });
 
         confirm_update_modal
@@ -659,26 +699,26 @@ impl MyApp {
 
         if self.atmerge.show_versions{
 
-            if let Some(releases) = self.atmerge.releases.clone(){
+            let current_value = &mut cargo_crate_version!().to_string().clone();
 
-                let current_value = &mut cargo_crate_version!().to_string().clone();
-
-                egui::ComboBox::from_id_source("Versions")
-                .selected_text(format!("Current Version: {}",current_value))
-                .show_ui(ui, |ui| {
+            egui::ComboBox::from_id_source("Versions")
+            .selected_text(format!("Current Version: {}",current_value))
+            .show_ui(ui, |ui| {
+                if let Some(releases) = self.atmerge.releases.clone(){
                     for release in releases {
                         ui.selectable_value(current_value, release.version.clone(), release.version.clone()).on_hover_text_at_pointer(release.body.clone().unwrap());
                     }
-                });
-                if current_value != &cargo_crate_version!(){
-                    self.atmerge.new_release = Some(current_value.clone());
-
-                    confirm_update_modal.open();
-
-                    println!("current_value: {:?}",current_value);
                 }
+            });
+            if current_value != &cargo_crate_version!(){
+                self.atmerge.new_release = Some(current_value.clone());
+
+                self.atmerge.update_state = UpdateState::CONFIRMUPDATE;
+                confirm_update_modal.open();
+
+
+                println!("current_value: {:?}",current_value);
             }
-//            }
         }
 
 
