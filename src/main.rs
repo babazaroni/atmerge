@@ -22,6 +22,9 @@ use directories::{BaseDirs,UserDirs,ProjectDirs};
 
 use win_beep;
 
+use std::backtrace::Backtrace;
+use std::fs;
+
 #[macro_use]
 extern crate crashreport;
 
@@ -34,7 +37,17 @@ const TAB_TEST: &str = "results";
 const TAB_MERGE: &str = "report";
 
 fn main() -> eframe::Result<()> {
-    crashreport!();
+    //crashreport!();
+
+ 
+    std::panic::set_hook(Box::new(|_panic_info| {
+
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        eprintln!("My backtrace: {:#?}",backtrace);
+        let _res = fs::write("./CrashReport.txt",format!("{:#?}",backtrace));
+
+    }));
+ 
 
     let rt = Runtime::new().expect("Unable to create Runtime");
 
@@ -360,7 +373,7 @@ impl Atmerge {
             //println!("\nReleased");
             let _result = self.tx_main.as_ref().unwrap().send(None);
 
-            //divide(1.0, 0.0);
+            //panic!("panic in keyboard");
 
 /* 
             println!("merge_folder: {:?}",self.state.merged_folder);
