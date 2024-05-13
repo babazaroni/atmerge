@@ -456,8 +456,9 @@ impl egui_dock::TabViewer for Atmerge {
                     }
                     match self.state.template_file_path.clone(){
                     Some(template_file_path) => {
-                        let tfp = format!("{:?}",template_file_path);
-                        ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN));
+                        let tfp = format!("{:?}",template_file_path.file_name().unwrap());
+                        let full = format!("{:?}",template_file_path);
+                        ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
                     }
                     None => {
                         ui.label(RichText::new(format!("No {TAB_TEMPLATE} file selected")).color(Color32::RED));
@@ -486,8 +487,9 @@ impl egui_dock::TabViewer for Atmerge {
                     }
                     match self.state.monitor_folder.clone(){
                     Some(monitor_folder) => {
-                        let mt = format!("{:?}",monitor_folder);
-                        ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
+                        let mt = format!("{:?}",monitor_folder.file_name().unwrap());
+                        let full = format!("{:?}",monitor_folder);
+                        ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
                         match self.test_file_path.clone(){
                             Some(test_filespath) => {
                                 let mt = format!("{:?}",test_filespath.file_name().unwrap());
@@ -520,8 +522,9 @@ impl egui_dock::TabViewer for Atmerge {
                     };
                     match self.state.merged_folder.clone(){
                         Some(merged_folder) => {
-                            let mt = format!("{:?}",merged_folder);
-                            ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN));
+                            let mt = format!("{:?}",merged_folder.file_name().unwrap());
+                            let full = format!("{:?}",merged_folder);
+                            ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
                         }
                         None => {
                             ui.label(RichText::new(format!("No {TAB_MERGE} folder selected")).color(Color32::RED));
@@ -632,8 +635,9 @@ impl MyApp {
         }
         match self.atmerge.state.part_folder.clone(){
             Some(part_folder_path) => {
-                let pfp = format!("{:?}",part_folder_path);
-                ui.label(RichText::new(pfp.trim_matches('"')).color(Color32::GREEN));
+                let pfp = format!("{:?}",part_folder_path.file_name().unwrap());
+                let full = format!("{:?}",part_folder_path);
+                ui.label(RichText::new(pfp.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
             }
             None => {
                 ui.label(RichText::new("No part folder selected").color(Color32::RED));
