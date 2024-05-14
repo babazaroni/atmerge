@@ -46,7 +46,7 @@ fn main() -> eframe::Result<()> {
 
         let mut path = env::current_exe().unwrap();
 
-        path.set_file_name("CrashReport.txt");
+        path.set_file_name("atmerge_crash_report.txt");
 
 
         eprintln!("My backtrace: {:#?}",backtrace);
@@ -595,6 +595,9 @@ struct MyApp {
 }
 
 // see for app persistance: rodneylab.com/trying-egui/
+
+// for tab title rich text
+// TabViewer::title returns any WidgetText so you can just create a RichText and convert it with .into() on return
 
 impl Default for MyApp {
 
