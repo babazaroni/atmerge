@@ -39,7 +39,7 @@ const TAB_MERGE: &str = "report";
 fn main() -> eframe::Result<()> {
     //crashreport!();
 
- 
+ #[cfg(debug_assertions)]
     std::panic::set_hook(Box::new(|_panic_info| {
 
         let backtrace = std::backtrace::Backtrace::force_capture();
@@ -95,6 +95,7 @@ fn main() -> eframe::Result<()> {
     )
 
 }
+
 
 pub fn divide(a: f64, b: f64) -> f64 {
     let d: Option<u32> = None;
