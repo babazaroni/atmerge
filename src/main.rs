@@ -399,6 +399,23 @@ impl Atmerge {
         ui.ctx().memory_mut(|mem| *mem = Default::default());
     }
 
+    fn check_ctrl_keys(&mut self,ui: &mut egui::Ui){
+
+        let current_modifiers = ui.input(|i| i.modifiers);
+        if current_modifiers.matches_exact(Modifiers::CTRL) {
+
+            if ui.ctx().input(|i| i.key_released(Key::R)) {
+                self.reset(ui);
+            }
+            if ui.ctx().input(|i| i.key_released(Key::V)) {
+                self.show_versions = !self.show_versions;
+            }
+            if ui.ctx().input(|i| i.key_released(Key::P)) {
+                panic!("panic in keyboard");
+            }
+        }
+    }
+
     fn check_keyboard(&mut self,ui: &mut egui::Ui){
 
         if ui.ctx().input(|i| i.key_released(Key::T)) {
@@ -406,24 +423,8 @@ impl Atmerge {
             let _result = self.tx_main.as_ref().unwrap().send(None);
 
             //panic!("panic in keyboard");
-
         }
-        if ui.ctx().input(|i| i.key_released(Key::R)) {
-
-            let current_modifiers = ui.input(|i| i.modifiers);
-            if current_modifiers.matches_exact(Modifiers::CTRL) {
-
-                self.reset(ui);
-
-            }
-        }
-        if ui.ctx().input(|i| i.key_released(Key::V)) {
-
-            if ui.input(|i| i.modifiers).matches_exact(Modifiers::CTRL) {
-                self.show_versions = !self.show_versions;
-            }
-        }
-
+        self.check_ctrl_keys(ui);
     }
     
 }
