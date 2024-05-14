@@ -403,26 +403,16 @@ impl Atmerge {
 
         let current_modifiers = ui.input(|i| i.modifiers);
         if current_modifiers.matches_exact(Modifiers::CTRL) {
-
-            if ui.ctx().input(|i| i.key_released(Key::R)) {
-                self.reset(ui);
-            }
-            if ui.ctx().input(|i| i.key_released(Key::V)) {
-                self.show_versions = !self.show_versions;
-            }
-            if ui.ctx().input(|i| i.key_released(Key::P)) {
-                panic!("panic in keyboard");
-            }
+            if ui.ctx().input(|i| i.key_released(Key::R)) {self.reset(ui);}
+            if ui.ctx().input(|i| i.key_released(Key::V)) {self.show_versions = !self.show_versions;}
+            if ui.ctx().input(|i| i.key_released(Key::P)) {panic!("panic in keyboard");}
         }
     }
 
     fn check_keyboard(&mut self,ui: &mut egui::Ui){
 
         if ui.ctx().input(|i| i.key_released(Key::T)) {
-            //println!("\nReleased");
             let _result = self.tx_main.as_ref().unwrap().send(None);
-
-            //panic!("panic in keyboard");
         }
         self.check_ctrl_keys(ui);
     }
