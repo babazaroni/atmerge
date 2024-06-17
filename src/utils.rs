@@ -1,23 +1,21 @@
+use polars::frame::row;
 use polars_core::prelude::*;
 
+use polars_core::utils::rayon::result;
 use polars_io::prelude::*;
 
+use std::hash::Hash;
 use std::io::prelude::*;
 use std::{fs, i64};
 
 use std::fs::File;
 use std::io::{self, BufRead, LineWriter};
 use std::path::{Path,PathBuf};
+use std::collections::HashMap;
 
 
 
 
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
-}
 pub fn get_max_columns(path:&String) -> Option<usize>{
     if let Ok(lines) = read_lines(path) {
 
@@ -84,6 +82,25 @@ pub fn prompt_for_folder() ->Option<std::path::PathBuf>{
     if let Some(picked_path) = path {
         return Some(picked_path);
     }
+    None
+}
+
+pub fn get_format_file(path:&PathBuf) -> Option<PathBuf>{
+
+        let entries = std::fs::read_dir(path)
+        .unwrap();
+
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_file(){
+                    let path_str = path.to_str().unwrap().to_ascii_lowercase();
+                    if path_str.contains("format"){
+                        return Some(path.clone());
+                    }
+                }
+            }
+        }
     None
 }
 
@@ -192,6 +209,10 @@ pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
         let sheets = workbook.sheet_names().to_owned();
         let first_sheet = sheets[0].clone();
 
+        //println!("get_df_from_xlsx path: {:?}",picked_path.display());
+
+        //println!("get_df_from_xlsx Found {} sheets in '{}'",sheets.len(), first_sheet);
+
         if let Ok(range) = workbook.worksheet_range(&first_sheet) {
             //let total_cells = range.get_size().0 * range.get_size().1;
             let non_empty_cells: usize = range.used_cells().count();
@@ -232,13 +253,7 @@ pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
     Err(PolarsError::NoData("No file selected".into()))
 
 }
-pub fn prompt_for_excel() -> PolarsResult<DataFrame> {
 
-    let path = prompt_for_template();
-
-    get_df_from_xlsx(path)
-
-}
 
 fn get_vec_columns(df: &DataFrame) -> Vec<Series>{
     let mut columns = Vec::new();
@@ -278,7 +293,115 @@ pub fn merge(df1:&DataFrame, df2:&DataFrame) -> DataFrame {
 
 static ASCII_UPPERCASE: [char;26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 
-pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf){
+fn read_lines(filename: &str) -> io::Result<io::Lines<io::BufReader<File>>> {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}
+
+pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf,format_file: &PathBuf){
+    //println!("merge_excel_format: source_path: {:?}",format_file);
+
+    let mut book = umya_spreadsheet::reader::xlsx::read(source_path).unwrap();
+
+    let mut test_columns = HashMap::new();
+
+    if let Ok(lines) = read_lines(format_file.to_str().unwrap()) {
+        let mut start_row = 0;
+        for line in lines.flatten() {
+            if line.contains("#"){continue;}
+
+            let parts:Vec<String>= line.split(",").map(String::from).collect();
+
+    
+            match parts[0].as_ref(){
+                "START_ROW" => {
+                    if parts.len()>1{
+                        start_row = parts[1].parse::<usize>().unwrap();
+                        //println!("merge_excel_format: start_row: {}",start_row);
+                    }
+                },
+                "TEST" => {
+                    if parts.len()>2{
+                        let test_name = parts[1].clone();
+                        let test_column = parts[2].clone();
+                        test_columns.insert(test_name,test_column);
+                    }
+                },
+                _ => {}
+            }
+        }
+        let columns = get_vec_columns(&df_tests);
+        let test_column = get_column_with_header("TEST",columns);
+        if let Some(test_column) = test_column{
+            let columns = get_vec_columns(&df_tests);
+            let result_column  = get_column_with_header("RESULT",columns);
+            if let Some(result_column) = result_column{
+
+                let mut row_test_results: HashMap<String, String> = HashMap::new();
+
+                for (test_val,result_val) in test_column.iter().zip(result_column.iter()){
+
+                    let tval = match test_val{
+                        polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                        _ => "_"
+                    };
+                    let rval = match result_val{
+                        polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                        _ => "_"
+                    };
+
+
+                    match row_test_results.get(tval){
+                        Some(results) => {
+                            let mut mresults = results.to_owned();
+                            mresults = format!("{},{}",mresults,rval);
+                            
+                            row_test_results.insert(tval.to_string(),mresults);
+                        },
+
+
+                        None => {
+                            match test_columns.get(tval){
+                                Some(_column) => {
+                                    row_test_results.insert(tval.to_string(),rval.to_string());
+                                },
+                                None => {}
+                            }
+                        }
+                    }
+
+
+                    if tval == "RUN TIME"{
+                        //println!("row_test_results: {:?}",row_test_results);
+
+                        for (key,value) in row_test_results.iter(){
+                            let column = test_columns.get(key).unwrap();
+ // do this or iterating will crash
+                                let header = format!("{}{}",column,start_row);
+                                let _ = book
+                                .get_sheet_mut(&0)
+                                .unwrap()
+                                .get_cell_mut(header)
+                                .set_value(value);
+
+                        }
+                        row_test_results = HashMap::new();
+                        start_row += 1;
+                    }
+
+                }
+
+            }
+    
+        }
+
+        //println!("dest_path: {:?}",dest_path);
+
+        let _ = umya_spreadsheet::writer::xlsx::write(&mut book, dest_path);
+
+    }
+}
+pub fn merge_excel_append(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf){
 
     let mut book = umya_spreadsheet::reader::xlsx::read(source_path).unwrap();
 
@@ -310,6 +433,8 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
         println!("No 'Tests' row found in template, using {}",test_row.unwrap());
     }
 
+    println!("merge_excel_append: test_row: {}",test_row.unwrap());
+
     let columns = get_vec_columns(&df_tests);
 
     for (cnum,column) in columns.iter().enumerate(){
@@ -328,14 +453,14 @@ pub fn merge_excel(df_template:&DataFrame,df_tests:&DataFrame,source_path: PathB
         }
     }
 
-    edit_excel(&mut book,test_row.unwrap());
+    excel_fix_id_column(&mut book,test_row.unwrap());
 
     let _ = umya_spreadsheet::writer::xlsx::write(&mut book, dest_path);
 
 
 }
 
-fn edit_excel(book: &mut umya_spreadsheet::Spreadsheet,test_row:usize){
+fn excel_fix_id_column(book: &mut umya_spreadsheet::Spreadsheet,test_row:usize){
     let mut row = test_row + 5;
 
     let mut state = PARSESTATES::START;
@@ -376,7 +501,7 @@ fn edit_excel(book: &mut umya_spreadsheet::Spreadsheet,test_row:usize){
     }
 }
 
-fn get_pass_fail_column(columns:Vec<Series>) -> Option<Series>{
+fn get_column_with_header(header:&str,columns:Vec<Series>) -> Option<Series>{
 
     for column in columns{
         let column = column.rechunk();  // do this or iterating will crash
@@ -389,7 +514,7 @@ fn get_pass_fail_column(columns:Vec<Series>) -> Option<Series>{
 
             };
 
-            if val == "PASS/FAIL"{
+            if val == header{
                 //println!("Found PASS/FAIL column");
                 return Some(column.clone());
             }
@@ -419,7 +544,7 @@ pub fn filter(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
     if let Some(df) = df {
 
         let columns = get_vec_columns(&df);
-        let pf_column = get_pass_fail_column(columns);
+        let pf_column = get_column_with_header("PASS/FAIL",columns);
 
         //println!("pf_column: {:?}",pf_column);
 

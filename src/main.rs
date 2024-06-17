@@ -2,7 +2,7 @@
 
 
 use atmerge::{atmerge_self_update,load_csv, merge};
-use atmerge::{prompt_for_folder, prompt_for_template,merge_excel,filter,get_paths_from_part_folder};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
@@ -233,16 +233,21 @@ impl Atmerge {
 
                         let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                        merge_excel(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
+                        let format_file = get_format_file(&merged_folder);
 
+                        if let Some(format_file) = format_file{
+                            merge_excel_format(&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx,&format_file);
+                        } else {
+                            merge_excel_append(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
+                        }
                         self.merged_file_path = Some(merged_path_xlsx);
 
-                        let df_merged = get_df_from_xlsx(self.merged_file_path.clone());                        
-     
-                        self.dfs.insert(TAB_MERGE.to_owned(), df_merged.unwrap());
+                        let df_merged = get_df_from_xlsx(self.merged_file_path.clone());  
 
-                        self.beep();
-
+                        if let Ok(df) = df_merged{
+                            self.dfs.insert(TAB_MERGE.to_owned(), df);
+                            self.beep();
+                        }                      
 
                             //let merged_path_csv = merged_folder.join(stripped_file_name.to_owned() + ".csv");
 
