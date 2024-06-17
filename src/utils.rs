@@ -187,6 +187,8 @@ pub fn prompt_for_template()->Option<PathBuf>{
     return path
 }
 
+
+// Remember that xslx files with not all columns filled in can cause a crash
 pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
     if let Some(picked_path) = path {
