@@ -6,12 +6,14 @@ use polars_io::prelude::*;
 
 use std::hash::Hash;
 use std::io::prelude::*;
-use std::{fs, i64};
+use std::{any, fs, i64};
 
 use std::fs::File;
 use std::io::{self, BufRead, LineWriter};
 use std::path::{Path,PathBuf};
 use std::collections::{HashMap, HashSet};
+
+use itertools::izip;
 
 
 
@@ -301,6 +303,8 @@ fn read_lines(filename: &str) -> io::Result<io::Lines<io::BufReader<File>>> {
     Ok(io::BufReader::new(file).lines())
 }
 
+
+
 pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf,format_file: &PathBuf){
     //println!("merge_excel_format: source_path: {:?}",format_file);
 
@@ -336,7 +340,7 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                         let test_dest = parts[3].clone();
 
                         source_columns.insert(test_source.clone());
-                                                let count = test_counts.entry(test_name.clone()).or_insert(0);
+                        let count = test_counts.entry(test_name.clone()).or_insert(0);
                         *count += 1;
 
                         test_name = format!("{}-{}",test_name,count);
@@ -383,7 +387,8 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
             //println!("");
 
             let columns = get_vec_columns(&df_tests);
-            let test_column = get_column_with_header("TEST",columns);
+            let test_column = get_column_with_header("TEST",columns.clone());
+            let passfail_column = get_column_with_header("PASS/FAIL",columns);
 
             if let Some(test_column) = test_column{
         
@@ -391,84 +396,100 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                 let result_column  = get_column_with_header(source_column,columns);
                 if let Some(result_column) = result_column{
 
-                    for (test_val,result_val) in test_column.iter().zip(result_column.iter()){
+                    if let Some(passfail_column) = passfail_column{
+
+                        for ((test_val,result_val),passfail_val) in test_column.iter().zip(result_column.iter()).zip(passfail_column.iter()){
+                        //for (test_val,x,result_val) in izip!(test_column.iter(),result_column.iter(),passfail_column.iter()){
 
 
-                        row_test_results.insert(String::from("UNIT_NUM"),String::from(format!("{}",unit_num)));
+                            row_test_results.insert(String::from("UNIT_NUM"),String::from(format!("{}",unit_num)));
 
-                        let mut tval = match test_val{
-                            polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
-                            _ => ""
-                        };
-                        let rval = match result_val{
-                            polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
-                            _ => ""
-                        };
+                            let mut tval = match test_val{
+                                polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                                _ => ""
+                            };
+                            let rval = match result_val{
+                                polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                                _ => ""
+                            };
 
-                        if tval == "" {continue;}
+                            if tval == "" {continue;}
 
-                        tval = tval.trim(); // remove leading/trailing whitespace
+                            tval = tval.trim(); // remove leading/trailing whitespace
 
-                        if tval == test_delim{
-                            //println!("row_test_results: {:?}",row_test_results);
+                            if tval == test_delim{
 
-                            for (key,value) in row_test_results.iter(){
-                                let column = test_dests.get(key).unwrap();
-                                let header = format!("{}{}",column,current_row);
-                                let _ = book
-                                    .get_sheet_mut(&0)
-                                    .unwrap()
-                                    .get_cell_mut(header)
-                                    .set_value(value);
 
+
+                                let pfval = match passfail_val{
+                                    polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                                    _ => ""
+                                };
+
+
+                                if pfval == "PASS"{
+  
+                                //println!("row_test_results: {:?}",row_test_results);
+
+                                    for (key,value) in row_test_results.iter(){
+                                        let column = test_dests.get(key).unwrap();
+                                        let header = format!("{}{}",column,current_row);
+                                        let _ = book
+                                            .get_sheet_mut(&0)
+                                            .unwrap()
+                                            .get_cell_mut(header)
+                                            .set_value(value);
+
+                                    }
+                                    row_test_results = HashMap::new();
+                                    results_count = HashMap::new();
+
+                                    current_row += 1;
+                                    unit_num += 1;
+                                    continue;
+                                }
                             }
-                            row_test_results = HashMap::new();
-                            results_count = HashMap::new();
-
-                            current_row += 1;
-                            unit_num += 1;
-                            continue;
-                        }
 
 
 
-                        let count = results_count.entry(tval.to_string().clone()).or_insert(0);
-                        *count += 1;
+                            let count = results_count.entry(tval.to_string().clone()).or_insert(0);
+                            *count += 1;
 
-                        let test_name = format!("{}-{}",tval,count);
+                            let test_name = format!("{}-{}",tval,count);
 
-                        //println!("checking test_name: {} result: {}",test_name,rval);
+                            //println!("checking test_name: {} result: {}",test_name,rval);
 
-                        if test_sources.get(&test_name) == None{
-                            continue;
-                        } 
-
-
-                        //println!("checking test sources {} {:?}",test_name,test_sources);
-                        // is this test in the current source column?
-                        if source_column != test_sources.get(&test_name).unwrap(){continue}
+                            if test_sources.get(&test_name) == None{
+                                continue;
+                            } 
 
 
-                        //println!("test_name: {} result: {}",test_name,rval);
-
-                        tval = &test_name;
-
-
-                        match row_test_results.get(tval){
-                            Some(results) => {
-                                let mut mresults = results.to_owned();
-                                mresults = format!("{},{}",mresults,rval);
-                            
-                                row_test_results.insert(tval.to_string(),mresults);
-                            },
+                            //println!("checking test sources {} {:?}",test_name,test_sources);
+                            // is this test in the current source column?
+                            if source_column != test_sources.get(&test_name).unwrap(){continue}
 
 
-                            None => {
-                                match test_dests.get(tval){
-                                    Some(_column) => {
-                                        row_test_results.insert(tval.to_string(),rval.to_string());
-                                    },
-                                    None => {}
+                            //println!("test_name: {} result: {}",test_name,rval);
+
+                            tval = &test_name;
+
+
+                            match row_test_results.get(tval){
+                                Some(results) => {
+                                    let mut mresults = results.to_owned();
+                                    mresults = format!("{},{}",mresults,rval);
+                                
+                                    row_test_results.insert(tval.to_string(),mresults);
+                                },
+
+
+                                None => {
+                                    match test_dests.get(tval){
+                                        Some(_column) => {
+                                            row_test_results.insert(tval.to_string(),rval.to_string());
+                                        },
+                                        None => {}
+                                    }
                                 }
                             }
                         }

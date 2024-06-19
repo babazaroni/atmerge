@@ -60,5 +60,7 @@ win-beep = "1.0.3"
 
 crashreport ="^1.0.1"
 
+itertools = "0.10.0"
+
 
 
