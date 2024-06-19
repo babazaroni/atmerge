@@ -590,6 +590,11 @@ pub fn merge_excel_append(df_template:&DataFrame,df_tests:&DataFrame,source_path
 
 }
 
+enum PARSESTATES {
+    START,
+    END
+}
+
 fn excel_fix_id_column(book: &mut umya_spreadsheet::Spreadsheet,test_row:usize){
     let mut row = test_row + 5;
 

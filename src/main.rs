@@ -2,7 +2,7 @@
 
 
 use atmerge::{atmerge_self_update,load_csv,ReportFormat};
-use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter1,filter2,get_paths_from_part_folder,get_format_file};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
@@ -208,7 +208,7 @@ impl Atmerge {
 
                 if let Some(df_tests) = self.dfs.get(TAB_TEST){
 
-                    if let Ok(df_filtered) = filter2(Some(df_tests.clone())){
+                    if let Ok(df_filtered) = filter(Some(df_tests.clone())){
 
 
 
