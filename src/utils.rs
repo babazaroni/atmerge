@@ -11,7 +11,7 @@ use std::{fs, i64};
 use std::fs::File;
 use std::io::{self, BufRead, LineWriter};
 use std::path::{Path,PathBuf};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 
 
@@ -178,6 +178,7 @@ pub fn clean_df_val(df_val:AnyValue<'_>)->String{
     let trimmed: &str = null_filtered.trim_matches('"'); // remove quotes
     String::from(trimmed)
 }
+
 use calamine::{Reader, open_workbook, Xlsx, Data};
 
 pub fn prompt_for_template()->Option<PathBuf>{
@@ -188,7 +189,7 @@ pub fn prompt_for_template()->Option<PathBuf>{
 }
 
 
-// Remember that xslx files with not all columns filled in can cause a crash
+// Remember that xslx files with not all columns filled in can cause a crashgit
 pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
     if let Some(picked_path) = path {
@@ -305,10 +306,16 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
 
     let mut book = umya_spreadsheet::reader::xlsx::read(source_path).unwrap();
 
-    let mut test_columns = HashMap::new();
+    let mut test_sources = HashMap::new();
+    let mut test_dests = HashMap::new();
+    let mut test_counts = HashMap::new();
+    let mut source_columns = HashSet::new();
 
     if let Ok(lines) = read_lines(format_file.to_str().unwrap()) {
+
+        let mut test_delim = String::from("RUN TIME");
         let mut start_row = 0;
+
         for line in lines.flatten() {
             if line.contains("#"){continue;}
 
@@ -323,77 +330,155 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                     }
                 },
                 "TEST" => {
-                    if parts.len()>2{
-                        let test_name = parts[1].clone();
-                        let test_column = parts[2].clone();
-                        test_columns.insert(test_name,test_column);
+                    if parts.len()>3{
+                        let mut test_name = parts[1].clone();
+                        let test_source = parts[2].clone();
+                        let test_dest = parts[3].clone();
+
+                        source_columns.insert(test_source.clone());
+                                                let count = test_counts.entry(test_name.clone()).or_insert(0);
+                        *count += 1;
+
+                        test_name = format!("{}-{}",test_name,count);
+
+
+                        //println!("test_name insert source: {} {}",test_name,test_source);
+                        test_sources.insert(test_name.clone(),test_source);
+
+                        //println!("test_name insert dest: {} {}",test_name,test_dest);
+                        test_dests.insert(test_name,test_dest);
+
+
+                    }
+                },
+                "UNIT_NUM" => {
+                    //println!("found UNIT#");
+                    if parts.len()>1{
+                        let test_name = parts[0].clone();
+                        let test_dest = parts[1].clone();
+                        test_dests.insert(test_name,test_dest);
+                    }
+                },
+                "TEST_DELIM" => {
+                    if parts.len()>1{
+                        test_delim = parts[1].clone();
                     }
                 },
                 _ => {}
             }
         }
-        let columns = get_vec_columns(&df_tests);
-        let test_column = get_column_with_header("TEST",columns);
-        if let Some(test_column) = test_column{
+
+ 
+        let mut row_test_results: HashMap<String, String> = HashMap::new();
+        let mut results_count: HashMap<String, i32> = HashMap::new();
+
+
+        for source_column in source_columns.iter(){
+
+            let mut unit_num = 1;
+            let mut current_row = start_row;
+
+
+            //println!("processing source_column: {}",source_column);
+            //println!("");
+
             let columns = get_vec_columns(&df_tests);
-            let result_column  = get_column_with_header("RESULT",columns);
-            if let Some(result_column) = result_column{
+            let test_column = get_column_with_header("TEST",columns);
 
-                let mut row_test_results: HashMap<String, String> = HashMap::new();
+            if let Some(test_column) = test_column{
+        
+                let columns = get_vec_columns(&df_tests);
+                let result_column  = get_column_with_header(source_column,columns);
+                if let Some(result_column) = result_column{
 
-                for (test_val,result_val) in test_column.iter().zip(result_column.iter()){
-
-                    let tval = match test_val{
-                        polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
-                        _ => "_"
-                    };
-                    let rval = match result_val{
-                        polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
-                        _ => "_"
-                    };
+                    for (test_val,result_val) in test_column.iter().zip(result_column.iter()){
 
 
-                    match row_test_results.get(tval){
-                        Some(results) => {
-                            let mut mresults = results.to_owned();
-                            mresults = format!("{},{}",mresults,rval);
+                        row_test_results.insert(String::from("UNIT_NUM"),String::from(format!("{}",unit_num)));
+
+                        let mut tval = match test_val{
+                            polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                            _ => ""
+                        };
+                        let rval = match result_val{
+                            polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+                            _ => ""
+                        };
+
+                        if tval == "" {continue;}
+
+                        tval = tval.trim(); // remove leading/trailing whitespace
+
+                        if tval == test_delim{
+                            //println!("row_test_results: {:?}",row_test_results);
+
+                            for (key,value) in row_test_results.iter(){
+                                let column = test_dests.get(key).unwrap();
+                                let header = format!("{}{}",column,current_row);
+                                let _ = book
+                                    .get_sheet_mut(&0)
+                                    .unwrap()
+                                    .get_cell_mut(header)
+                                    .set_value(value);
+
+                            }
+                            row_test_results = HashMap::new();
+                            results_count = HashMap::new();
+
+                            current_row += 1;
+                            unit_num += 1;
+                            continue;
+                        }
+
+
+
+                        let count = results_count.entry(tval.to_string().clone()).or_insert(0);
+                        *count += 1;
+
+                        let test_name = format!("{}-{}",tval,count);
+
+                        //println!("checking test_name: {} result: {}",test_name,rval);
+
+                        if test_sources.get(&test_name) == None{
+                            continue;
+                        } 
+
+
+                        //println!("checking test sources {} {:?}",test_name,test_sources);
+                        // is this test in the current source column?
+                        if source_column != test_sources.get(&test_name).unwrap(){continue}
+
+
+                        //println!("test_name: {} result: {}",test_name,rval);
+
+                        tval = &test_name;
+
+
+                        match row_test_results.get(tval){
+                            Some(results) => {
+                                let mut mresults = results.to_owned();
+                                mresults = format!("{},{}",mresults,rval);
                             
-                            row_test_results.insert(tval.to_string(),mresults);
-                        },
+                                row_test_results.insert(tval.to_string(),mresults);
+                            },
 
 
-                        None => {
-                            match test_columns.get(tval){
-                                Some(_column) => {
-                                    row_test_results.insert(tval.to_string(),rval.to_string());
-                                },
-                                None => {}
+                            None => {
+                                match test_dests.get(tval){
+                                    Some(_column) => {
+                                        row_test_results.insert(tval.to_string(),rval.to_string());
+                                    },
+                                    None => {}
+                                }
                             }
                         }
-                    }
-
-
-                    if tval == "RUN TIME"{
-                        //println!("row_test_results: {:?}",row_test_results);
-
-                        for (key,value) in row_test_results.iter(){
-                            let column = test_columns.get(key).unwrap();
- // do this or iterating will crash
-                                let header = format!("{}{}",column,start_row);
-                                let _ = book
-                                .get_sheet_mut(&0)
-                                .unwrap()
-                                .get_cell_mut(header)
-                                .set_value(value);
-
-                        }
-                        row_test_results = HashMap::new();
-                        start_row += 1;
                     }
 
                 }
 
             }
+
+            //break;
     
         }
 
