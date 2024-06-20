@@ -460,6 +460,8 @@ impl egui_dock::TabViewer for Atmerge {
             let df_result = load_csv(rx_path_msg.clone());
             if let Ok(df) = df_result {
 
+                println!("df: {:?}",df.shape());
+
                 //filter_fails
                 if let Ok(df_filtered) = filter_fails(Some(df.clone())){
 

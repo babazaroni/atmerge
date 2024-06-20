@@ -3,6 +3,8 @@
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
 
+use time::Duration;
+
 pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_monitor:Receiver<Option<PathBuf>>) {
 
 
@@ -48,7 +50,8 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
                             if let Some(last_modified) = last_modified_time{
                                 if modified > last_modified || force_load{
                                     force_load = false;
-                                    last_modified_time = Some(std::time::SystemTime::now());
+                                    let duration = Duration::seconds(5);  // allow main thread to make changes without causeing a loop
+                                    last_modified_time = Some(std::time::SystemTime::now() + duration);
                                     let _ = tx_monitor.send(Some(last_modified_file.path()));
                                     ctx.request_repaint(); // causes continuous repaint, so we can monitor for file changes
  
