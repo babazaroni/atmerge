@@ -2,10 +2,11 @@
 
 
 use atmerge::{atmerge_self_update,load_csv,ReportFormat};
-use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter,get_paths_from_part_folder,get_format_file};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
+use polars_io::csv::CsvWriter;
 use std::collections::BTreeMap;
 use egui::{RichText,Color32};
 
@@ -208,11 +209,8 @@ impl Atmerge {
 
                 if let Some(df_tests) = self.dfs.get(TAB_TEST){
 
-                    if let Ok(df_filtered) = filter(Some(df_tests.clone())){
 
-
-
-                        //let df_merged = merge(df_template,&df_filtered);
+                    //if let Ok(df_filtered) = filter_fails(Some(df_tests.clone())){
 
                         let file_path = self.state.template_file_path.clone().unwrap();
                         let file_ext = file_path.file_name().unwrap().to_str().unwrap();
@@ -239,9 +237,9 @@ impl Atmerge {
 
                         if let Some(format_file) = format_file{
                             let report_format = ReportFormat::new(&format_file);
-                            merge_excel_format(&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx,&report_format);
+                            merge_excel_format(&df_tests,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx,&report_format);
                         } else {
-                            merge_excel_append(&df_template,&df_filtered,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
+                            merge_excel_append(&df_template,&df_tests,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
                         }
                         self.merged_file_path = Some(merged_path_xlsx);
 
@@ -260,7 +258,7 @@ impl Atmerge {
 
                             //save_merged(dfm, Some(merged_path_csv));
                         
-                    }
+                    //}
 
                 }
             }
@@ -461,12 +459,17 @@ impl egui_dock::TabViewer for Atmerge {
 
             let df_result = load_csv(rx_path_msg.clone());
             if let Ok(df) = df_result {
-                self.test_file_path = rx_path_msg;
 
-                self.dfs.insert(TAB_TEST.to_owned(), df);
+                //filter_fails
+                if let Ok(df_filtered) = filter_fails(Some(df.clone())){
 
-                self.merge_serve();
+                    self.test_file_path = rx_path_msg;
 
+                    self.dfs.insert(TAB_TEST.to_owned(), df_filtered);
+    
+                    self.merge_serve();
+                   }
+ 
             }
         }
         if let Ok(_releases) = self.rx_update.as_ref().unwrap().try_recv() {

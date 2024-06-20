@@ -157,6 +157,14 @@ pub fn load_csv(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
 }
 
+pub fn save_csv(df:&mut DataFrame,path:Option<PathBuf>){
+    if let Some(picked_path) = path {
+        let mut output_file = File::create(picked_path).unwrap(); 
+        let _result = CsvWriter::new(&mut output_file)
+        .finish(df);
+    }
+}
+
 
 pub fn prompt_for_csv() -> PolarsResult<DataFrame> {
 
@@ -191,7 +199,7 @@ pub fn prompt_for_template()->Option<PathBuf>{
 }
 
 
-// Remember that xslx files with not all columns filled in can cause a crashgit
+// Remember that xslx files with not all columns filled in can cause a crashg
 pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
     if let Some(picked_path) = path {
@@ -302,7 +310,7 @@ fn read_lines(filename: &str) -> io::Result<io::Lines<io::BufReader<File>>> {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
-
+#[derive(Debug)]
 pub struct ReportFormat {
     start_row: usize,
     test_delim: String,
@@ -391,12 +399,10 @@ impl ReportFormat {
 
 pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &PathBuf,report_format:&ReportFormat){
 
-    //println!("merge_excel_format: source_path: {:?}",format_file);
 
     let mut book = umya_spreadsheet::reader::xlsx::read(source_path).unwrap();
 
 
- 
     let mut row_test_results: HashMap<String, String> = HashMap::new();
     let mut results_count: HashMap<String, i32> = HashMap::new();
 
@@ -406,25 +412,30 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
         let mut unit_num = 1;
         let mut current_row = report_format.start_row;
 
-
         //println!("processing source_column: {}",source_column);
         //println!("");
 
         let columns = get_vec_columns(&df_tests);
+
+        //println!("columns: {:?}",columns);
+
         let test_column = get_column_with_header("TEST",columns.clone());
         let passfail_column = get_column_with_header("PASS/FAIL",columns);
 
+
         if let Some(test_column) = test_column{
+
     
             let columns = get_vec_columns(&df_tests);
             let result_column  = get_column_with_header(source_column,columns);
             if let Some(result_column) = result_column{
 
+
                 if let Some(passfail_column) = passfail_column{
+
 
                     for ((test_val,result_val),passfail_val) in test_column.iter().zip(result_column.iter()).zip(passfail_column.iter()){
                     //for (test_val,x,result_val) in izip!(test_column.iter(),result_column.iter(),passfail_column.iter()){
-
 
                         row_test_results.insert(String::from("UNIT_NUM"),String::from(format!("{}",unit_num)));
 
@@ -442,8 +453,6 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                         tval = tval.trim(); // remove leading/trailing whitespace
 
                         if tval == report_format.test_delim{
-
-
 
                             let pfval = match passfail_val{
                                 polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
@@ -664,9 +673,8 @@ enum FILTERSTATES {
     REST
 
 }
-pub fn filter(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
+pub fn filter_fails(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
 
-    println!("starting filter2");
 
     if let Some(df) = df {
         let columns = get_vec_columns(&df);
@@ -700,6 +708,7 @@ pub fn filter(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
                         FILTERSTATES::FIND_FIRST_TEST => {
 
                             if tval == "TEST"{
+                                slice_rows.push((0,x+1));
                                 parse_state = FILTERSTATES::REST;
                             }
                         },
@@ -709,8 +718,8 @@ pub fn filter(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
 
                             }
                             if tval == "OVERALL"{
-                                if pfval == "FAIL"{
-                                    slice_rows.push((test_start.unwrap(),x - test_start.unwrap()));
+                                if pfval == "PASS"{
+                                    slice_rows.push((test_start.unwrap(),x - test_start.unwrap() + 1));
                                 }
 
                                 test_start = None;
@@ -721,6 +730,7 @@ pub fn filter(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
                 }
             }
         }
+
         let mut base_df = df.slice(0,0);
         for (_x,(start,len)) in slice_rows.iter().enumerate(){
             if len>&0{
