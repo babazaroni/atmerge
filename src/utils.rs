@@ -6,6 +6,7 @@ use polars_io::prelude::*;
 
 use std::hash::Hash;
 use std::io::prelude::*;
+use std::str::FromStr;
 use std::{any, fs, i64};
 
 use std::fs::File;
@@ -136,8 +137,6 @@ pub fn get_paths_from_part_folder(path: Option<PathBuf>) -> (Option<std::path::P
                     }
                 }
             }
-
-
         }
     }
     (result_path,report_path,template_path)
@@ -221,6 +220,8 @@ pub fn prompt_for_template()->Option<PathBuf>{
 // Remember that xslx files with not all columns filled in can cause a crashg
 pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
+    println!("get_df_from_xlsx path1: {:?}",path);
+
     if let Some(picked_path) = path {
         if picked_path.exists() == false{
             return Err(PolarsError::NoData("File does not exist".into()));}
@@ -232,12 +233,23 @@ pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
             }
             return  Err(PolarsError::NoData("No file selected".into()));
         }
+
+        println!("get_df_from_xlsx path2: {:?}",picked_path.display());
         
+     //   let mut workbook: Xlsx<_> = open_workbook(&picked_path).expect("Cannot open file"); 
+         let workbook = open_workbook(&picked_path);
 
-        let mut workbook: Xlsx<_> = open_workbook(&picked_path).expect("Cannot open file"); 
-        workbook.load_tables().expect("Cannot load tables");
+         if workbook.is_err(){
+            return Err(PolarsError::NoData("Cannot open file".into()));}
 
+        let mut workbook: Xlsx<_> = workbook.unwrap();
 
+        let res = workbook.load_tables();
+
+        if res.is_err(){
+            return Err(PolarsError::NoData("Cannot load tables".into()));
+        }
+        
         let sheets = workbook.sheet_names().to_owned();
         let first_sheet = sheets[0].clone();
 

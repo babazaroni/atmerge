@@ -359,7 +359,11 @@ impl Atmerge {
         if let Some(template_file_path) = self.state.template_file_path.clone(){
 
             if self.dfs.get(TAB_TEMPLATE).is_none(){
+                println!("debug 1 tab is empty {:?}",template_file_path);
+
                 let res = get_df_from_xlsx(Some(template_file_path));
+
+                println!("debug 2 res: {:?}",res);
 
                 if let Ok(df) = res{
                     self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
