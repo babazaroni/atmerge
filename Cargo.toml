@@ -33,7 +33,7 @@ egui_dock = {path = "../egui_dock"}
 
 rfd = "0.14.1"
 
-polars = {version = "0.32.1", features = ["lazy","csv","dtype-datetime","rows"]}
+polars = {version = "0.32.1", features = ["lazy","csv","dtype-datetime","rows","polars-io"]}
 polars-core = "0.32.1"
 polars-io = "0.32.1"
 
@@ -63,6 +63,8 @@ crashreport ="^1.0.1"
 itertools = "0.13.0"
 
 time = "0.3.36"
+
+filetime = "0.2.14"
 
 
 

@@ -161,7 +161,26 @@ pub fn save_csv(df:&mut DataFrame,path:Option<PathBuf>){
     if let Some(picked_path) = path {
         let mut output_file = File::create(picked_path).unwrap(); 
         let _result = CsvWriter::new(&mut output_file)
+        .with_quote_style(QuoteStyle::NonNumeric)
+        .has_header(false)
         .finish(df);
+    }
+}
+
+pub fn fix_quotes(pb: &PathBuf){
+    let mut new_lines = Vec::new();
+    if let Ok(lines) = read_lines(pb.to_str().unwrap()) {
+        for line in lines.flatten() {
+            let mut new_line = line.clone();
+            new_line = new_line.replace("\"","");
+            new_lines.push(new_line);
+        }
+    }
+    let file = File::create(pb.to_str().unwrap()).unwrap();
+    let mut file = LineWriter::new(file);
+    for line in new_lines{
+        file.write_all(line.as_bytes()).unwrap();
+        file.write_all(b"\n").unwrap();
     }
 }
 
@@ -460,7 +479,7 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                             };
 
 
-                            if pfval == "PASS"{
+//                            if pfval == "PASS"{
 
                             //println!("row_test_results: {:?}",row_test_results);
 
@@ -480,7 +499,7 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
                                 current_row += 1;
                                 unit_num += 1;
                                 continue;
-                            }
+//                            }
                         }
 
                         let count = results_count.entry(tval.to_string().clone()).or_insert(0);
@@ -673,7 +692,7 @@ enum FILTERSTATES {
     REST
 
 }
-pub fn filter_fails(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
+pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> PolarsResult<DataFrame> {
 
 
     if let Some(df) = df {
@@ -691,6 +710,8 @@ pub fn filter_fails(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
 
 
             if let Some(pf_column) = pf_column{
+
+                let mut fail_count = 0;
 
 
                 for (x,(test_val,passfail_val)) in test_column.iter().zip(pf_column.iter()).enumerate(){
@@ -715,14 +736,18 @@ pub fn filter_fails(df:Option<DataFrame>) -> PolarsResult<DataFrame> {
                         FILTERSTATES::REST => {
                             if test_start == None{
                                 test_start = Some(x);
-
                             }
-                            if tval == "OVERALL"{
-                                if pfval == "PASS"{
+                            if pfval == "FAIL"{
+                                fail_count += 1;
+                            }
+
+                            if tval == report_format.test_delim{
+                                if fail_count == 0{
                                     slice_rows.push((test_start.unwrap(),x - test_start.unwrap() + 1));
                                 }
 
                                 test_start = None;
+                                fail_count = 0;
                             }
 
                         }

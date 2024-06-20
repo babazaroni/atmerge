@@ -1,13 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use atmerge::{atmerge_self_update,load_csv,ReportFormat};
+use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
 use polars_io::csv::CsvWriter;
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use egui::{RichText,Color32};
 
 use tokio::runtime::Runtime;
@@ -199,7 +200,7 @@ impl Atmerge {
         println!("beep");
     }
     
-    fn merge_serve(&mut self){
+    fn merge_serve(&mut self,result_folder: Option<std::path::PathBuf>){
 
         if let Some(merged_folder) = self.state.merged_folder.clone(){
 
@@ -231,9 +232,7 @@ impl Atmerge {
 
                         let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                        let format_file = get_format_file(&merged_folder);
-
-
+                        let format_file = get_format_file(self.monitoring_folder.as_ref().unwrap());
 
                         if let Some(format_file) = format_file{
                             let report_format = ReportFormat::new(&format_file);
@@ -364,7 +363,7 @@ impl Atmerge {
 
                 if let Ok(df) = res{
                     self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
-                    self.merge_serve();
+                    self.merge_serve(self.monitoring_folder.clone());
                     return;
                 } else {
                     self.state.template_file_path = None;
@@ -462,15 +461,30 @@ impl egui_dock::TabViewer for Atmerge {
 
                 println!("df: {:?}",df.shape());
 
+                let format_file = get_format_file(&self.monitoring_folder.as_ref().unwrap());
+
+                if let Some(format_file) = format_file{
+                    let report_format = ReportFormat::new(&format_file);
+
                 //filter_fails
-                if let Ok(df_filtered) = filter_fails(Some(df.clone())){
+                    if let Ok(df_filtered) = filter_fails(Some(df.clone()),&report_format){
 
-                    self.test_file_path = rx_path_msg;
+                        println!("df_filtered: {:?}",df_filtered.shape());
 
-                    self.dfs.insert(TAB_TEST.to_owned(), df_filtered);
-    
-                    self.merge_serve();
+                        self.test_file_path = rx_path_msg;
+
+                        self.dfs.insert(TAB_TEST.to_owned(), df_filtered.clone());
+
+                        let pb = PathBuf::from("./test.csv");
+                        let dfm = &mut df_filtered.clone();
+
+                        save_csv(dfm,self.test_file_path.clone());
+
+                        fix_quotes(&self.test_file_path.as_ref().unwrap());
+        
+                        self.merge_serve(self.monitoring_folder.clone());
                    }
+                }
  
             }
         }
@@ -558,7 +572,7 @@ impl egui_dock::TabViewer for Atmerge {
 
                         if let Some(folder) = merged_folder{
                             self.state.merged_folder = Some(folder.clone());
-                            self.merge_serve()
+                            self.merge_serve(self.monitoring_folder.clone());
 
                         }
                     };
