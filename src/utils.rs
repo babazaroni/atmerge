@@ -107,7 +107,7 @@ pub fn get_format_file(path:&PathBuf) -> Option<PathBuf>{
     None
 }
 
-pub fn get_paths_from_part_folder(path: Option<PathBuf>) -> (Option<std::path::PathBuf>,Option<std::path::PathBuf>,Option<std::path::PathBuf>){
+pub fn get_paths_from_part_folder(path: &Option<PathBuf>) -> (Option<std::path::PathBuf>,Option<std::path::PathBuf>,Option<std::path::PathBuf>){
 
     let mut result_path: Option<PathBuf> = None;
     let mut report_path: Option<PathBuf> = None;
@@ -195,6 +195,23 @@ pub fn prompt_for_csv() -> PolarsResult<DataFrame> {
 
 }
 
+pub fn get_files_with_extension(dir:&PathBuf,desired_ext:&str) -> Result<Vec<PathBuf>, Box<dyn ::std::error::Error>>{
+    let paths = std::fs::read_dir(dir)?
+        // Filter out all those directory entries which couldn't be read
+        .filter_map(|res| res.ok())
+        // Map the directory entries to paths
+        .map(|dir_entry| dir_entry.path())
+        // Filter out all paths with extensions other than `csv`
+        .filter_map(|path| {
+            if path.extension().map_or(false, |ext| ext == desired_ext) {Some(path)
+            } else {None}
+        })
+        .collect::<Vec<_>>();
+
+    Ok(paths)
+
+}
+
 pub fn clean_df_val(df_val:AnyValue<'_>)->String{
     let null_filtered = match df_val{
         polars::datatypes::AnyValue::Null => String::from(""),
@@ -220,7 +237,7 @@ pub fn prompt_for_template()->Option<PathBuf>{
 // Remember that xslx files with not all columns filled in can cause a crashg
 pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
 
-    println!("get_df_from_xlsx path1: {:?}",path);
+    //println!("get_df_from_xlsx path1: {:?}",path);
 
     if let Some(picked_path) = path {
         if picked_path.exists() == false{
@@ -234,7 +251,7 @@ pub fn get_df_from_xlsx(path:Option<PathBuf>) -> PolarsResult<DataFrame> {
             return  Err(PolarsError::NoData("No file selected".into()));
         }
 
-        println!("get_df_from_xlsx path2: {:?}",picked_path.display());
+        //println!("get_df_from_xlsx path2: {:?}",picked_path.display());
         
      //   let mut workbook: Xlsx<_> = open_workbook(&picked_path).expect("Cannot open file"); 
          let workbook = open_workbook(&picked_path);

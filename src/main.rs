@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat};
+use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat,get_files_with_extension};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use eframe::{egui, NativeOptions};
@@ -112,6 +112,7 @@ pub fn divide(a: f64, b: f64) -> f64 {
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
+#[derive(Clone, Debug)]
 struct State{
     monitor_folder: Option<std::path::PathBuf>,
     merged_folder: Option<std::path::PathBuf>,
@@ -359,11 +360,9 @@ impl Atmerge {
         if let Some(template_file_path) = self.state.template_file_path.clone(){
 
             if self.dfs.get(TAB_TEMPLATE).is_none(){
-                println!("debug 1 tab is empty {:?}",template_file_path);
+
 
                 let res = get_df_from_xlsx(Some(template_file_path));
-
-                println!("debug 2 res: {:?}",res);
 
                 if let Ok(df) = res{
                     self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
@@ -390,9 +389,7 @@ impl Atmerge {
                 self.monitoring_folder = Some(monitor_folder.clone());
                 let _result = self.tx_main.as_ref().unwrap().send(Some(monitor_folder));
             }
-    
         }
-
     }
 
     fn reset(&mut self,ui: &mut egui::Ui){
@@ -458,6 +455,10 @@ impl egui_dock::TabViewer for Atmerge {
             if rx_path_msg == self.merged_file_path{
                 return;
             }
+
+            let csv_list = get_files_with_extension(self.monitoring_folder.as_ref().unwrap(),"csv");
+
+            println!("csv_list: {:?}",csv_list);
 
 
             let df_result = load_csv(rx_path_msg.clone());
@@ -687,13 +688,18 @@ impl MyApp {
 
                 self.atmerge.reset(ui);
 
-                self.atmerge.state.part_folder = part_folder.clone();
 
-                let folders = get_paths_from_part_folder(part_folder);
+                let folders = get_paths_from_part_folder(&part_folder);
 
-                self.atmerge.state.monitor_folder = folders.0;
-                self.atmerge.state.merged_folder = folders.1;
-                self.atmerge.state.template_file_path = folders.2;
+                if folders.0.is_some() && folders.1.is_some() && folders.2.is_some(){
+
+                    self.atmerge.state.monitor_folder = folders.0;
+                    self.atmerge.state.merged_folder = folders.1;
+                    self.atmerge.state.template_file_path = folders.2;
+
+                    self.atmerge.state.part_folder = part_folder.clone();
+                }
+
             }
         }
         match self.atmerge.state.part_folder.clone(){
