@@ -141,7 +141,7 @@ struct Atmerge {
     table: atmerge::Table,
     dfs: BTreeMap<Title, polars::prelude::DataFrame>,
     monitoring_folder: Option<std::path::PathBuf>,
-    test_file_path: Option<std::path::PathBuf>,
+    test_file_path: Option<Vec<std::path::PathBuf>>,
     merged_file_path: Option<std::path::PathBuf>,
     rx_main: Option<std::sync::mpsc::Receiver<Option<std::path::PathBuf>>>,
     tx_main: Option<std::sync::mpsc::Sender<Option<std::path::PathBuf>>>,
@@ -457,41 +457,45 @@ impl egui_dock::TabViewer for Atmerge {
             }
 
             let csv_list = get_files_with_extension(self.monitoring_folder.as_ref().unwrap(),"csv");
+            //let csv_list = Ok(vec!(rx_path_msg.clone().unwrap()));
 
-            println!("csv_list: {:?}",csv_list);
+            if let Ok(csv_list) = csv_list{
 
+                for csv_path in csv_list.clone(){
 
-            let df_result = load_csv(rx_path_msg.clone());
-            if let Ok(df) = df_result {
+                    let df_result = load_csv(Some(csv_path.clone()));
+                    if let Ok(df) = df_result {
 
-                println!("df: {:?}",df.shape());
+                        println!("df: {:?}",df.shape());
 
-                let format_file = get_format_file(&self.monitoring_folder.as_ref().unwrap());
+                        let format_file = get_format_file(&self.monitoring_folder.as_ref().unwrap());
 
-                if let Some(format_file) = format_file{
-                    let report_format = ReportFormat::new(&format_file);
+                        if let Some(format_file) = format_file{
+                            let report_format = ReportFormat::new(&format_file);
 
-                //filter_fails
-                    if let Ok(df_filtered) = filter_fails(Some(df.clone()),&report_format){
+                        //filter_fails
+                            if let Ok(df_filtered) = filter_fails(Some(df.clone()),&report_format){
 
-                        println!("df_filtered: {:?}",df_filtered.shape());
+                                println!("df_filtered: {:?}",df_filtered.shape());
 
-                        self.test_file_path = rx_path_msg;
+                                self.dfs.insert(TAB_TEST.to_owned(), df_filtered.clone());
 
-                        self.dfs.insert(TAB_TEST.to_owned(), df_filtered.clone());
+                                let dfm = &mut df_filtered.clone();
 
-                        let pb = PathBuf::from("./test.csv");
-                        let dfm = &mut df_filtered.clone();
+                                save_csv(dfm,Some(csv_path.clone()));
 
-                        save_csv(dfm,self.test_file_path.clone());
-
-                        fix_quotes(&self.test_file_path.as_ref().unwrap());
-        
-                        self.merge_serve(self.monitoring_folder.clone());
-                   }
-                }
+                                fix_quotes(&csv_path);
+                
+                            }
+                        }
+                    }
  
+                }
+                self.test_file_path = Some(csv_list);
+
+                self.merge_serve(self.monitoring_folder.clone());
             }
+
         }
         if let Ok(_releases) = self.rx_update.as_ref().unwrap().try_recv() {
 
@@ -516,17 +520,17 @@ impl egui_dock::TabViewer for Atmerge {
                         self.dfs.remove(TAB_TEMPLATE);
                     }
                     match self.state.template_file_path.clone(){
-                    Some(template_file_path) => {
-                        let tfp = format!("{:?}",template_file_path.file_name().unwrap());
-                        let full = format!("{:?}",template_file_path);
-                        ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
+                        Some(template_file_path) => {
+                            let tfp = format!("{:?}",template_file_path.file_name().unwrap());
+                            let full = format!("{:?}",template_file_path);
+                            ui.label(RichText::new(tfp.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
+                        }
+                        None => {
+                            ui.label(RichText::new(format!("No {TAB_TEMPLATE} file selected")).color(Color32::RED));
+                        }
                     }
-                    None => {
-                        ui.label(RichText::new(format!("No {TAB_TEMPLATE} file selected")).color(Color32::RED));
-                    }
-                }
 
-            });
+                });
             }
             TAB_TEST => {
 
@@ -547,27 +551,47 @@ impl egui_dock::TabViewer for Atmerge {
     
                     }
                     match self.state.monitor_folder.clone(){
-                    Some(monitor_folder) => {
-                        let mt = format!("{:?}",monitor_folder.file_name().unwrap());
-                        let full = format!("{:?}",monitor_folder);
-                        ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
-                        match self.test_file_path.clone(){
-                            Some(test_filespath) => {
-                                let mt = format!("{:?}",test_filespath.file_name().unwrap());
-                                ui.label(RichText::new(mt.trim_matches('"')).color(Color32::LIGHT_BLUE));
+                        Some(monitor_folder) => {
+                            let mt = format!("{:?}",monitor_folder.file_name().unwrap());
+                            let full = format!("{:?}",monitor_folder);
+                            ui.label(RichText::new(mt.trim_matches('"')).color(Color32::GREEN)).on_hover_text(full.trim_matches('"'));
+                            match self.test_file_path.clone(){
+                                Some(test_filespath) => {
+
+                                    let mut file_names = String::from("");
+                                    for path in test_filespath{
+                                        if file_names.len()>0{
+                                            file_names  = format!("{},",file_names.clone());
+                                        }
+
+                                        
+
+                                    
+                                        let next_file = format!("{:?}",path.file_name().unwrap()).trim_matches('"').to_string();
+
+                                        let first = next_file.split('.').collect::<Vec<&str>>()[0];
+                                        //println!("first: {}",first.trim_matches('"'));
+                                        //file_names = format!("{}{}",file_names,next_file.trim_matches('"'));
+                                        file_names = format!("{}{}",file_names,first);
+
+                                    }
+
+                                    //let mt = format!("{:?}",test_filespath.file_name().unwrap());
+                                    ui.label(RichText::new(file_names.trim_matches('"')).color(Color32::LIGHT_BLUE));
+                                }
+                                None => {}
                             }
-                            None => {}
                         }
     
+    
+                        None => {
+                            ui.label(RichText::new(format!("No {TAB_TEST} folder selected")).color(Color32::RED));
+                        }
                     }
-                    None => {
-                        ui.label(RichText::new(format!("No {TAB_TEST} folder selected")).color(Color32::RED));
-                    }
-                }
             
-            });
-
+                });
             }
+
             TAB_MERGE => {
                 ui.horizontal_wrapped(|ui|{
 
