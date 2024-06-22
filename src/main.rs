@@ -460,11 +460,14 @@ impl egui_dock::TabViewer for Atmerge {
                 return;
             }
 
-            let csv_list = get_files_with_extension(self.monitoring_folder.as_ref().unwrap(),"csv");
+            let mut csv_list = get_files_with_extension(self.monitoring_folder.as_ref().unwrap(),"csv");
+
             //let csv_list = Ok(vec!(rx_path_msg.clone().unwrap()));
 
 
-            if let Ok(csv_list) = csv_list{
+            if let Ok(csv_list) = csv_list.as_mut(){
+
+                csv_list.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
 
                 let mut dfm = DataFrame::default();
                 let mut test_counts: Vec<usize> = Vec::new();
@@ -499,7 +502,7 @@ impl egui_dock::TabViewer for Atmerge {
                 }
                 self.dfs.insert(TAB_TEST.to_owned(), dfm);
 
-                self.test_file_path = Some(csv_list);
+                self.test_file_path = Some(csv_list.clone());
                 self.test_file_counts = test_counts;
 
                 self.merge_serve();
@@ -568,6 +571,7 @@ impl egui_dock::TabViewer for Atmerge {
                                 Some(test_filespath) => {
 
                                     let mut file_names = String::from("");
+                                    let mut base_count = 1;
                                     for (path,count) in test_filespath.iter().zip(self.test_file_counts.iter()){
                                         if file_names.len()>0{
                                             file_names  = format!("{},",file_names.clone());
@@ -579,7 +583,8 @@ impl egui_dock::TabViewer for Atmerge {
                                         let first = next_file.split('.').collect::<Vec<&str>>()[0];
                                         //println!("first: {}",first.trim_matches('"'));
                                         //file_names = format!("{}{}",file_names,next_file.trim_matches('"'));
-                                        file_names = format!("{}{}({})",file_names,first,count);
+                                        file_names = format!("{}{}({},{})",file_names,first,count,base_count);
+                                        base_count += count;
 
                                     }
 
