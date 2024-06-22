@@ -4,8 +4,10 @@
 use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat,get_files_with_extension};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
+use calamine::Data;
 use eframe::{egui, NativeOptions};
 use egui_dock::{DockArea, DockState, Style};
+use polars::frame::DataFrame;
 use polars_io::csv::CsvWriter;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -142,6 +144,7 @@ struct Atmerge {
     dfs: BTreeMap<Title, polars::prelude::DataFrame>,
     monitoring_folder: Option<std::path::PathBuf>,
     test_file_path: Option<Vec<std::path::PathBuf>>,
+    test_file_counts: Vec<usize>,
     merged_file_path: Option<std::path::PathBuf>,
     rx_main: Option<std::sync::mpsc::Receiver<Option<std::path::PathBuf>>>,
     tx_main: Option<std::sync::mpsc::Sender<Option<std::path::PathBuf>>>,
@@ -166,6 +169,7 @@ impl Default for Atmerge{
 
             monitoring_folder: None,
             test_file_path: None,
+            test_file_counts: Vec::new(),
             merged_file_path: None,
 
             rx_main: None,
@@ -201,7 +205,7 @@ impl Atmerge {
         println!("beep");
     }
     
-    fn merge_serve(&mut self,result_folder: Option<std::path::PathBuf>){
+    fn merge_serve(&mut self){
 
         if let Some(merged_folder) = self.state.merged_folder.clone(){
 
@@ -366,7 +370,7 @@ impl Atmerge {
 
                 if let Ok(df) = res{
                     self.dfs.insert(TAB_TEMPLATE.to_owned(), df);
-                    self.merge_serve(self.monitoring_folder.clone());
+                    self.merge_serve();
                     return;
                 } else {
                     self.state.template_file_path = None;
@@ -459,14 +463,16 @@ impl egui_dock::TabViewer for Atmerge {
             let csv_list = get_files_with_extension(self.monitoring_folder.as_ref().unwrap(),"csv");
             //let csv_list = Ok(vec!(rx_path_msg.clone().unwrap()));
 
+
             if let Ok(csv_list) = csv_list{
 
-                for csv_path in csv_list.clone(){
+                let mut dfm = DataFrame::default();
+                let mut test_counts: Vec<usize> = Vec::new();
+
+                for csv_path in csv_list.clone().iter(){
 
                     let df_result = load_csv(Some(csv_path.clone()));
                     if let Ok(df) = df_result {
-
-                        println!("df: {:?}",df.shape());
 
                         let format_file = get_format_file(&self.monitoring_folder.as_ref().unwrap());
 
@@ -474,11 +480,11 @@ impl egui_dock::TabViewer for Atmerge {
                             let report_format = ReportFormat::new(&format_file);
 
                         //filter_fails
-                            if let Ok(df_filtered) = filter_fails(Some(df.clone()),&report_format){
+                            if let (Ok(df_filtered),test_count) = filter_fails(Some(df.clone()),&report_format){
 
-                                println!("df_filtered: {:?}",df_filtered.shape());
+                                dfm = dfm.vstack(&df_filtered).unwrap();
 
-                                self.dfs.insert(TAB_TEST.to_owned(), df_filtered.clone());
+                                test_counts.push(test_count);
 
                                 let dfm = &mut df_filtered.clone();
 
@@ -491,9 +497,12 @@ impl egui_dock::TabViewer for Atmerge {
                     }
  
                 }
-                self.test_file_path = Some(csv_list);
+                self.dfs.insert(TAB_TEST.to_owned(), dfm);
 
-                self.merge_serve(self.monitoring_folder.clone());
+                self.test_file_path = Some(csv_list);
+                self.test_file_counts = test_counts;
+
+                self.merge_serve();
             }
 
         }
@@ -559,25 +568,23 @@ impl egui_dock::TabViewer for Atmerge {
                                 Some(test_filespath) => {
 
                                     let mut file_names = String::from("");
-                                    for path in test_filespath{
+                                    for (path,count) in test_filespath.iter().zip(self.test_file_counts.iter()){
                                         if file_names.len()>0{
                                             file_names  = format!("{},",file_names.clone());
                                         }
 
                                         
-
-                                    
                                         let next_file = format!("{:?}",path.file_name().unwrap()).trim_matches('"').to_string();
 
                                         let first = next_file.split('.').collect::<Vec<&str>>()[0];
                                         //println!("first: {}",first.trim_matches('"'));
                                         //file_names = format!("{}{}",file_names,next_file.trim_matches('"'));
-                                        file_names = format!("{}{}",file_names,first);
+                                        file_names = format!("{}{}({})",file_names,first,count);
 
                                     }
 
                                     //let mt = format!("{:?}",test_filespath.file_name().unwrap());
-                                    ui.label(RichText::new(file_names.trim_matches('"')).color(Color32::LIGHT_BLUE));
+                                    ui.label(RichText::new(file_names).color(Color32::LIGHT_BLUE));
                                 }
                                 None => {}
                             }
@@ -601,8 +608,7 @@ impl egui_dock::TabViewer for Atmerge {
 
                         if let Some(folder) = merged_folder{
                             self.state.merged_folder = Some(folder.clone());
-                            self.merge_serve(self.monitoring_folder.clone());
-
+                            self.merge_serve();
                         }
                     };
                     match self.state.merged_folder.clone(){

@@ -502,10 +502,10 @@ pub fn merge_excel_format(df_tests:&DataFrame,source_path: PathBuf,dest_path: &P
 
                         if tval == report_format.test_delim{
 
-                            let pfval = match passfail_val{
-                                polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
-                                _ => ""
-                            };
+//                            let pfval = match passfail_val{
+//                                polars::datatypes::AnyValue::Utf8(val) => val.trim_matches('"'),
+//                                _ => ""
+//                            };
 
 
 //                            if pfval == "PASS"{
@@ -721,7 +721,7 @@ enum FILTERSTATES {
     REST
 
 }
-pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> PolarsResult<DataFrame> {
+pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> (PolarsResult<DataFrame>,usize) {
 
 
     if let Some(df) = df {
@@ -793,11 +793,11 @@ pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> PolarsR
             }
         }
         //println!("Filtered DataFrame: {}",&base_df);
-        return Result::Ok(base_df);
+        return (Result::Ok(base_df),slice_rows.len());
 
     }
 
-    Err(PolarsError::NoData("No file to filter".into()))
+    (Err(PolarsError::NoData("No file to filter".into())),0)
 }
 
 
