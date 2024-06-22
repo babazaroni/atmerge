@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 
-use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat,get_files_with_extension};
+use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat,get_files_with_extension,compare_with_trailing_number};
 use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
 use atmerge::get_df_from_xlsx;
 use calamine::Data;
@@ -467,7 +467,9 @@ impl egui_dock::TabViewer for Atmerge {
 
             if let Ok(csv_list) = csv_list.as_mut(){
 
-                csv_list.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+                csv_list.sort_by(|a, b|
+                    compare_with_trailing_number(a.file_name().unwrap().to_str().unwrap(),b.file_name().unwrap().to_str().unwrap())
+                );
 
                 let mut dfm = DataFrame::default();
                 let mut test_counts: Vec<usize> = Vec::new();

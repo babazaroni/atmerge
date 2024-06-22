@@ -85,8 +85,6 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
                     last_file_hash = file_hash;
                 }
 
-
-
                 let last_modified_file = std::fs::read_dir(path)
                 .expect("Couldn't access local directory")
                 .flatten() // Remove failed

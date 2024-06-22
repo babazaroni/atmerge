@@ -212,6 +212,38 @@ pub fn get_files_with_extension(dir:&PathBuf,desired_ext:&str) -> Result<Vec<Pat
 
 }
 
+pub fn compare_with_trailing_number(a: &str, b: &str) -> std::cmp::Ordering{
+    let (a_prefix, a_number) = split_by_trailing_number(a);
+    let (b_prefix, b_number) = split_by_trailing_number(b);
+
+    if a_prefix == b_prefix {
+        return a_number.cmp(&b_number);
+    }
+
+    a_prefix.cmp(&b_prefix)
+}
+
+
+pub fn split_by_trailing_number(s: &str) -> (String, i32) {
+
+    let a = s.split('.').collect::<Vec<&str>>();
+
+    let first = a[..a.len()-1].join(".");
+
+    let reversed_number = first.chars().rev().take_while(|c| c.is_numeric()).collect::<String>();
+
+    let trailing_number_string = reversed_number.chars().rev().collect::<String>();
+
+    let prefix = first.chars().rev().skip(trailing_number_string.len()).collect::<String>();
+
+    if trailing_number_string.len() == 0{
+        return (prefix,0);
+    }
+
+
+    (prefix, trailing_number_string.parse::<i32>().unwrap())
+}
+
 pub fn clean_df_val(df_val:AnyValue<'_>)->String{
     let null_filtered = match df_val{
         polars::datatypes::AnyValue::Null => String::from(""),
