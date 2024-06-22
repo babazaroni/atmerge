@@ -1,9 +1,11 @@
 
 
+use std::hash::Hasher;
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
 
 use time::Duration;
+
 
 use crate::get_files_with_extension;
 
@@ -17,6 +19,23 @@ fn get_file_count(path: &PathBuf) -> usize {
         .count()
 }
 
+fn get_file_hash(path: &PathBuf) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    //hasher.write(("abc").as_bytes());
+    std::fs::read_dir(path)
+        .expect("Couldn't access local directory")
+        .flatten() // Remove failed
+        .filter(|f|
+            f.metadata().unwrap().is_file() &&
+            f.path().extension().unwrap().to_str().unwrap().to_lowercase() == "csv") // Filter out directories (only consider files)
+        .for_each(|f| {
+
+            let fname = f.file_name();
+            hasher.write(fname.to_str().unwrap().as_bytes());
+        });
+    hasher.finish()
+}
+
 pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_monitor:Receiver<Option<PathBuf>>) {
 
 
@@ -27,6 +46,7 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
         let mut monitor_path = Option::<PathBuf>::None;
         let mut last_modified_time = Option::<std::time::SystemTime>::None;
         let mut last_file_count = 0;
+        let mut last_file_hash = 0;
 
         loop {
             match rx_monitor.try_recv() {
@@ -34,7 +54,8 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
                     if rx_path_msg.is_some() {
                         monitor_path = rx_path_msg;
                         last_modified_time = Some(std::time::SystemTime::now());
-                        last_file_count = get_file_count(&monitor_path.clone().unwrap());
+                        //last_file_count = get_file_count(&monitor_path.clone().unwrap());
+                        last_file_hash = get_file_hash(&monitor_path.clone().unwrap());
                         //println!("monitor_path1: {:?}",monitor_path);
                     } else{
                         force_load = true;
@@ -51,11 +72,17 @@ pub fn start_monitor(ctx: egui::Context,tx_monitor:Sender<Option<PathBuf>>,rx_mo
  
             if let Some(path) = monitor_path.clone(){
 
-                let file_count = get_file_count(&path);
+                //let file_count = get_file_count(&path);
 
-                if file_count != last_file_count{
+                //if file_count != last_file_count{
+                //    force_load = true;
+                //    last_file_count = file_count;
+                //}
+
+                let file_hash = get_file_hash(&path);
+                if file_hash != last_file_hash{
                     force_load = true;
-                    last_file_count = file_count;
+                    last_file_hash = file_hash;
                 }
 
 
