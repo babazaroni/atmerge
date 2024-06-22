@@ -825,7 +825,7 @@ pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> (Polars
             }
         }
         //println!("Filtered DataFrame: {}",&base_df);
-        return (Result::Ok(base_df),slice_rows.len());
+        return (Result::Ok(base_df),slice_rows.len()-1);
 
     }
 
