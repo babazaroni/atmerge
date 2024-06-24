@@ -413,7 +413,8 @@ impl Atmerge {
 
     fn check_ctrl_keys(&mut self,ui: &mut egui::Ui){
 
-        let current_modifiers = ui.input(|i| i.modifiers);
+        let mut current_modifiers = ui.input(|i| i.modifiers);
+        current_modifiers.shift = false;
         if current_modifiers.matches_exact(Modifiers::CTRL) {
             if ui.ctx().input(|i| i.key_released(Key::R)) {self.reset(ui);}
             if ui.ctx().input(|i| i.key_released(Key::V)) {self.show_versions = !self.show_versions;}
