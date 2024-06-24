@@ -568,6 +568,7 @@ impl egui_dock::TabViewer for Atmerge {
                             self.dfs.remove(TAB_TEST);
                             self.dfs.remove(TAB_MERGE);
                             self.merged_file_path = None;
+                            self.process_result_folder();
                         }
     
                     }
