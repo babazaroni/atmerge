@@ -2,7 +2,7 @@
 
 
 use atmerge::{atmerge_self_update,load_csv,save_csv,fix_quotes,ReportFormat,get_files_with_extension,compare_with_trailing_number};
-use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file};
+use atmerge::{prompt_for_folder, prompt_for_template,merge_excel_append,merge_excel_format,filter_fails,get_paths_from_part_folder,get_format_file,search_for_format_file};
 use atmerge::get_df_from_xlsx;
 use calamine::Data;
 use eframe::{egui, NativeOptions};
@@ -237,10 +237,11 @@ impl Atmerge {
 
                         let merged_path_xlsx = merged_folder.join(merge_name.to_owned() + ".xlsx");
 
-                        let format_file = get_format_file(self.state.monitor_folder.as_ref().unwrap());
-
-                        if let Some(format_file) = format_file{
+                        let format_file = search_for_format_file(&self.state.monitor_folder.as_ref().unwrap());
+ 
+                        if let Ok(format_file) = format_file{
                             let report_format = ReportFormat::new(&format_file);
+
                             merge_excel_format(&df_tests,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx,&report_format);
                         } else {
                             merge_excel_append(&df_template,&df_tests,self.state.template_file_path.clone().unwrap(),&merged_path_xlsx);
@@ -450,9 +451,9 @@ impl Atmerge {
                 let df_result = load_csv(Some(csv_path.clone()));
                 if let Ok(df) = df_result {
 
-                    let format_file = get_format_file(&self.state.monitor_folder.as_ref().unwrap());
+                    let format_file = search_for_format_file(&self.state.monitor_folder.as_ref().unwrap());
 
-                    if let Some(format_file) = format_file{
+                    if let Ok(format_file) = format_file{
                         let report_format = ReportFormat::new(&format_file);
 
                     //filter_fails

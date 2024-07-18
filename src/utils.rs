@@ -88,10 +88,11 @@ pub fn prompt_for_folder() ->Option<std::path::PathBuf>{
     None
 }
 
-pub fn get_format_file(path:&PathBuf) -> Option<PathBuf>{
 
-        let entries = std::fs::read_dir(path)
-        .unwrap();
+
+pub fn get_format_file(path:&PathBuf) -> Result<PathBuf,io::Error>{
+
+        let entries = std::fs::read_dir(path)?;
 
         for entry in entries {
             if let Ok(entry) = entry {
@@ -99,12 +100,29 @@ pub fn get_format_file(path:&PathBuf) -> Option<PathBuf>{
                 if path.is_file(){
                     let path_str = path.to_str().unwrap().to_ascii_lowercase();
                     if path_str.contains("format"){
-                        return Some(path.clone());
+                        return Ok(path.clone());
                     }
                 }
             }
         }
-    None
+    Err(io::Error::new(io::ErrorKind::NotFound, "No format file found"))
+}
+
+pub fn search_for_format_file(path:&PathBuf) -> Result<PathBuf,io::Error>{
+    let mut format_file = get_format_file(path);
+
+    if format_file.is_err(){  // if not in results folder check template folder
+
+
+            if let Some(file_prefix) = path.parent(){
+                let mut format = PathBuf::new();
+                format.push(file_prefix);
+                format_file = get_format_file(&format);
+            }
+        }
+
+    format_file
+
 }
 
 pub fn get_paths_from_part_folder(path: &Option<PathBuf>) -> (Option<std::path::PathBuf>,Option<std::path::PathBuf>,Option<std::path::PathBuf>){
