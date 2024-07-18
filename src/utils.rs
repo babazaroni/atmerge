@@ -767,7 +767,7 @@ fn get_column_with_header(header:&str,columns:Vec<Series>) -> Option<Series>{
 }
 #[derive(Debug)]
 enum FILTERSTATES {
-    FIND_FIRST_TEST,
+    FindFirstTest,
     REST
 
 }
@@ -781,7 +781,7 @@ pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> (Polars
         let test_column = get_column_with_header("TEST",columns);
         let mut slice_rows: Vec<(usize,usize)> = Vec::new();
 
-        let mut parse_state = FILTERSTATES::FIND_FIRST_TEST;
+        let mut parse_state = FILTERSTATES::FindFirstTest;
 
         let mut test_start: Option<usize> = None;
 
@@ -805,7 +805,7 @@ pub fn filter_fails(df:Option<DataFrame>,report_format:&ReportFormat) -> (Polars
                     };
                     
                     match parse_state{
-                        FILTERSTATES::FIND_FIRST_TEST => {
+                        FILTERSTATES::FindFirstTest => {
 
                             if tval == "TEST"{
                                 slice_rows.push((0,x+1));
