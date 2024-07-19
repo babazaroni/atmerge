@@ -90,40 +90,39 @@ pub fn prompt_for_folder() ->Option<std::path::PathBuf>{
 
 
 
-pub fn get_format_file(path:&PathBuf) -> Result<PathBuf,io::Error>{
 
-        let entries = std::fs::read_dir(path)?;
 
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_file(){
-                    let path_str = path.to_str().unwrap().to_ascii_lowercase();
-                    if path_str.contains("format"){
-                        return Ok(path.clone());
-                    }
-                }
+
+fn recurse_file_list(dir: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut file_list: Vec<PathBuf> = Vec::new();
+    if dir.is_dir() {
+
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let sub_list = recurse_file_list(&path)?;
+                file_list.extend(sub_list);
+            } else {
+                file_list.push(path);
             }
         }
-    Err(io::Error::new(io::ErrorKind::NotFound, "No format file found"))
+    }
+    Ok(file_list)
 }
 
-pub fn search_for_format_file(path:&PathBuf) -> Result<PathBuf,io::Error>{
-    let mut format_file = get_format_file(path);
-
-    if format_file.is_err(){  // if not in results folder check template folder
-
-
-            if let Some(file_prefix) = path.parent(){
-                let mut format = PathBuf::new();
-                format.push(file_prefix);
-                format_file = get_format_file(&format);
-            }
+pub fn search_for_format_file(dir: &Path) -> Option<PathBuf> {
+    let files = recurse_file_list(dir).unwrap();
+    for file in files {
+        let path_str = file.to_str().unwrap().to_ascii_lowercase();
+        if path_str.contains("format") {
+            return Some(file);
         }
-
-    format_file
-
+    }
+    None
 }
+
+
 
 pub fn get_paths_from_part_folder(path: &Option<PathBuf>) -> (Option<std::path::PathBuf>,Option<std::path::PathBuf>,Option<std::path::PathBuf>){
 
